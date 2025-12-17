@@ -4,8 +4,8 @@ from typing import Dict, Optional, Any
 import torch
 import torch.nn.functional as F
 
-from .CustomTransformer import CustomTransformer
-from .config import CustomTransformerConfig
+from .custom_transformer import CustomTransformer
+from .config import TransformerConfig
 
 
 class CustomTransformerWrapper:
@@ -57,7 +57,7 @@ class CustomTransformerWrapper:
         self.is_encoder_decoder = False
         self.pad_token_id = pad_token_id
 
-        config = CustomTransformerConfig(
+        config = TransformerConfig(
             vocab_size=vocab_size,
             max_seq_len=max_seq_len,
             n_blocks=n_blocks,

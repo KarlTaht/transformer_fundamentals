@@ -4,8 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
-from ..base import BaseLanguageModel
-
 
 class CustomTransformer:
 

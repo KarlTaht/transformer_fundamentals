@@ -17,8 +17,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from common.models import BaseLanguageModel
-
 
 class TorchTransformer(nn.Module):
     def __init__(self, config):
