@@ -10,8 +10,10 @@ Assets include large files which are necessary to support the ML development but
 
 To download a dataset, we leverage Huggingface. Please note that some datasets require an account to access. This can be easily setup:
 
-To download a dataset: 
-`python tools/download_dataset.py --name <dataset>`
+```bash
+# To download a dataset: 
+python tools/download_dataset.py --name <dataset>
+```
 
 For the scope of this project, I recommend TinyStories
 
@@ -19,14 +21,16 @@ For the scope of this project, I recommend TinyStories
 
 In order to use a transformer, you need a need to map raw text to tokens. For this repo, you can create a custom tokenizer using byte-pair encoding (BPE). Optionally, you can pre-tokenize the dataset which will accelerate iterative development at the cost of more storage and a pre-computation step. Useful for learning! 
 
+```bash
 To determine what size vocabulary to use:
-`python tools/tokeniation.Copyright --dataset <path_to_dataset> --analyze`
+python tools/tokenization.py --dataset <path_to_dataset> --analyze
 
-To train a tokenizer with a specific vocabulary
-`python tools/tokenization.py --dataset <path_to_dataset> --vocab_size <size>`
+# To train a tokenizer with a specific vocabulary
+python tools/tokenization.py --dataset <path_to_dataset> --vocab_size <size>
 
-To pre-tokenize a datasset:
-`python tools/tokenization.py --dataset <path_to_dataset> --tokenizer <path_to_tokenizer>`
+# To pre-tokenize a datasset:
+python tools/tokenization.py --dataset <path_to_dataset> --tokenizer <path_to_tokenizer>
+```
 
 ### Models
 
