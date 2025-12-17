@@ -69,9 +69,103 @@ tokenizer_path = train_tokenizer('tinystories', vocab_size=4096)
 output = pretokenize_dataset('tinystories', tokenizer_path, max_length=256)
 ```
 
+### Training
+
+Unified training script supporting both model types:
+
+```bash
+# Train TorchTransformer (PyTorch autograd)
+python scripts/train.py --config configs/torch_tinystories.yaml --model-type torch
+
+# Train CustomTransformer (manual backprop)
+python scripts/train.py --config configs/custom_tinystories.yaml --model-type custom
+
+# Resume training from checkpoint
+python scripts/train.py --config configs/torch_tinystories.yaml --model-type torch --resume
+
+# Resume from specific checkpoint
+python scripts/train.py --config configs/torch_tinystories.yaml --model-type torch --resume assets/models/experiment/best.pt
+```
+
+Training features:
+- Learning rate scheduling (warmup + cosine/linear decay)
+- Checkpoint management with best model tracking
+- JSON logging for visualization
+- Dynamic batch padding for efficiency
+- bfloat16 mixed precision training
+
+#### Configuration
+
+Training is configured via YAML files in `configs/`:
+
+```yaml
+experiment_name: tinystories_torch
+
+data:
+  dataset: tinystories
+  tokenizer: gpt2  # or path to custom tokenizer
+  max_length: 256
+  subset_size: 100000  # optional
+
+model:
+  d_model: 256
+  n_heads: 4
+  n_blocks: 6
+  d_ffn: 1024
+  max_seq_len: 256
+  dtype: bfloat16
+
+training:
+  batch_size: 32
+  num_epochs: 10
+  learning_rate: 3e-4
+  min_learning_rate: 3e-5
+  lr_decay: cosine
+  warmup_ratio: 0.1
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  eval_every: 500
+```
+
+#### Training Utilities (Python API)
+
+```python
+from training import (
+    CheckpointManager,  # Save/load checkpoints with rotation
+    Evaluator,          # Validation loss and perplexity
+    TrainingLogger,     # JSON-compatible structured logging
+)
+
+# Checkpoint management
+checkpoint_manager = CheckpointManager(
+    checkpoint_dir='assets/models/my_experiment',
+    model=model,
+    experiment_name='my_experiment',
+)
+checkpoint_manager.save(epoch=1, global_step=1000, ...)
+resume_state = checkpoint_manager.load()
+
+# Evaluation
+evaluator = Evaluator(model, device='cuda')
+result = evaluator.evaluate(val_loader)
+print(f"Val Loss: {result.loss:.4f}, Perplexity: {result.perplexity:.2f}")
+
+# Logging
+logger = TrainingLogger(
+    log_dir='assets/logs',
+    experiment_name='my_experiment',
+    model_type='TorchTransformer',
+    model_config={...},
+    train_config={...},
+)
+logger.log_step(step=100, epoch=0, loss=2.5, learning_rate=1e-4)
+logger.log_validation(step=100, epoch=0, loss=2.3, perplexity=10.0)
+logger.finish()
+```
+
 ### Scripts
 
-Core scripts for training, validating, and evaluating transformer models. 
+Additional scripts for validation and evaluation.
 
 ### Assets
 

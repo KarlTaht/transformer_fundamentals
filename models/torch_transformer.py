@@ -17,8 +17,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .base import BaseLanguageModel
 
-class TorchTransformer(nn.Module):
+
+class TorchTransformer(BaseLanguageModel):
     def __init__(self, config):
         """
         Initialize model with specified layer sizes.
@@ -34,8 +36,20 @@ class TorchTransformer(nn.Module):
                 - device (default: auto-detect)
                 - dtype (default: bfloat16)
         """
-        super().__init__()
+        # Extract config values first (before super().__init__)
         self._init_config(config)
+
+        # Initialize BaseLanguageModel with vocab_size and model config for checkpointing
+        super().__init__(
+            vocab_size=self.vocab_size,
+            is_encoder_decoder=False,
+            max_seq_len=self.max_seq_len,
+            n_blocks=self.n_blocks,
+            n_heads=self.n_heads,
+            d_model=self.d_model,
+            d_ffn=self.d_ffn,
+        )
+
         self._init_transformer_network()
     
     def _init_config(self, config):
