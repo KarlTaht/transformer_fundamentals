@@ -10,7 +10,22 @@ from .dataset_registry import (
     get_models_dir,
 )
 from .download_dataset import download_dataset
-from .train_tokenizer import train_tokenizer_from_registry, train_tokenizer_from_file
+from .tokenization import (
+    # Analysis
+    TokenAnalyzer,
+    TokenAnalysisReport,
+    TokenizerRecommendation,
+    EdgeCaseStats,
+    CoveragePoint,
+    analyze_dataset,
+    # Training
+    train_tokenizer,
+    train_tokenizer_from_files,
+    # Pre-tokenization
+    pretokenize_dataset,
+    load_pretokenized,
+    get_pretokenized_path,
+)
 
 __all__ = [
     # Dataset registry
@@ -23,7 +38,18 @@ __all__ = [
     "get_models_dir",
     # Download
     "download_dataset",
-    # Tokenizer training
-    "train_tokenizer_from_registry",
-    "train_tokenizer_from_file",
+    # Tokenization - Analysis
+    "TokenAnalyzer",
+    "TokenAnalysisReport",
+    "TokenizerRecommendation",
+    "EdgeCaseStats",
+    "CoveragePoint",
+    "analyze_dataset",
+    # Tokenization - Training
+    "train_tokenizer",
+    "train_tokenizer_from_files",
+    # Tokenization - Pre-tokenization
+    "pretokenize_dataset",
+    "load_pretokenized",
+    "get_pretokenized_path",
 ]
