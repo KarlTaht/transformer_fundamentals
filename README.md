@@ -163,9 +163,53 @@ logger.log_validation(step=100, epoch=0, loss=2.3, perplexity=10.0)
 logger.finish()
 ```
 
-### Scripts
+### Validation & Evaluation
 
-Additional scripts for validation and evaluation.
+The `validate.py` script provides model evaluation and interactive text generation:
+
+```bash
+# Evaluate on validation set (loss, perplexity)
+python scripts/validate.py \
+    --checkpoint assets/models/test_torch/best.pt \
+    --config configs/test_torch.yaml \
+    --eval
+
+# Single prompt generation
+python scripts/validate.py \
+    --checkpoint assets/models/test_torch/best.pt \
+    --config configs/test_torch.yaml \
+    --prompt "Once upon a time"
+
+# Interactive chat mode
+python scripts/validate.py \
+    --checkpoint assets/models/test_torch/best.pt \
+    --config configs/test_torch.yaml \
+    --chat
+
+# CustomTransformer evaluation
+python scripts/validate.py \
+    --checkpoint assets/models/test_custom/best.pt \
+    --config configs/test_custom.yaml \
+    --model-type custom \
+    --eval
+```
+
+#### Generation Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--max-length` | 100 | Maximum tokens to generate |
+| `--temperature` | 0.8 | Sampling temperature (higher = more random) |
+| `--top-k` | 50 | Top-k sampling (0 = disabled) |
+| `--max-batches` | all | Limit eval batches for quick testing |
+
+#### Chat Mode Commands
+
+In interactive chat mode:
+- Type prompts and press Enter to generate
+- `temp 0.5` - Adjust temperature
+- `topk 40` - Adjust top-k sampling
+- `quit` / `exit` / `q` - Exit chat
 
 ### Assets
 
