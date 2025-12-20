@@ -372,10 +372,20 @@ def list_datasets() -> Dict[str, str]:
 
 
 def get_default_assets_dir() -> Path:
-    """Get the default assets directory for the research monorepo."""
-    # Assumes this is called from ~/research
-    research_root = Path(__file__).parent.parent.parent
-    return research_root / "assets"
+    """Get the default assets directory for the project.
+
+    Returns the assets/ directory relative to the project root.
+    The project root is determined by finding pyproject.toml.
+    """
+    # Start from this file's directory and look for project root
+    current = Path(__file__).parent
+    while current != current.parent:
+        if (current / "pyproject.toml").exists():
+            return current / "assets"
+        current = current.parent
+
+    # Fallback: assume we're in tools/ under project root
+    return Path(__file__).parent.parent / "assets"
 
 
 def get_datasets_dir() -> Path:

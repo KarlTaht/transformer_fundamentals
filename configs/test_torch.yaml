@@ -1,0 +1,31 @@
+# Quick test config for TorchTransformer
+# Purpose: Fast validation of training pipeline (small model, small dataset)
+
+experiment_name: "test_torch"
+
+model:
+  d_model: 128
+  n_blocks: 2
+  n_heads: 4        # d_head = 32
+  d_ffn: 512        # 4x d_model
+  max_seq_len: 128
+  dtype: bfloat16
+
+data:
+  dataset: "tinystories"
+  tokenizer: "gpt2"  # Use GPT-2 tokenizer for simplicity
+  max_length: 128
+  subset_size: 1000      # Very small subset for testing
+  val_subset_size: 100
+
+training:
+  batch_size: 8
+  learning_rate: 0.001
+  min_learning_rate: 0.0001
+  lr_decay: cosine
+  warmup_ratio: 0.1
+  weight_decay: 0.01
+  num_epochs: 2
+  log_every: 10
+  eval_every: 50
+  max_grad_norm: 1.0
