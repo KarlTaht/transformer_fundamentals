@@ -211,6 +211,49 @@ In interactive chat mode:
 - `topk 40` - Adjust top-k sampling
 - `quit` / `exit` / `q` - Exit chat
 
+### Visualizer
+
+Web-based training comparison tool for analyzing and comparing training runs:
+
+```bash
+# Launch the visualizer
+python -m visualizer
+
+# With public sharing link
+python -m visualizer --share
+
+# Custom port
+python -m visualizer --port 8080
+```
+
+#### Features
+
+- **Loss Curves**: Overlay training and validation loss for up to 4 runs
+- **Validation Metrics**: Dual y-axis plot showing loss and perplexity
+- **FLOPs-Normalized**: Loss vs cumulative compute for fair model size comparison
+- **Learning Rate**: Visualize LR schedules across runs
+- **Throughput**: Compare tokens/second performance
+- **Config Comparison**: Side-by-side model and training configuration tables
+- **Summary Table**: Quick comparison of key metrics (params, best loss, TFLOPs)
+
+#### Python API
+
+```python
+from visualizer import (
+    create_app,              # Create Gradio app
+    launch,                  # Launch the visualizer
+    create_loss_curves,      # Generate loss plot
+    create_flops_normalized_loss,  # Compute-normalized plot
+    estimate_model_params,   # Estimate params from config
+)
+from training import load_training_log
+
+# Load and visualize a training run
+run = load_training_log('assets/logs/my_experiment.json')
+fig = create_loss_curves({'my_run': run})
+fig.show()
+```
+
 ### Assets
 
 This includes datasets, models, and outputs from experiments. More details in the assets folder. 
