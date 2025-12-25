@@ -1,20 +1,36 @@
 # Transformers from Scratch
 
-This educational repository provides low-level implementations of transformers and supporting tools and scripts to get started with training them. 
+Despite how prolific and simple transformers are, most implementations you'll find will include various abstractions
+and optimizations which obfuscate the core architecture and learning process. 
 
-Guiding Principles:
+I created this repository in effort to ease understanding the of the low-level implementation of transformers, the
+core being two simple models:
+
+- *Custom Transfomrer*: A tensor-level implementation with explicitly defined backpropagation
+- *Torch Transfomer*: A PyTorch implementation almost exactly mirrors the custom transformer to show the abstractions by PyTorch
+
+These files are both written entirely by hand, by me, with intentional naming and comments to make the code
+exceptionally easy to follow. My guiding principles for building this repository: 
+
 * Focus on the models & learning mechanism. This is the core of what makes transformers work and the key intention of this repo. 
 * Simplicity over optimization. There are many finely tuned transformer implementations, the purpose of this repository is a fundamental understanding!
 * Readability over conciseness. You'll find longer variable names and comments to walk through exactly what is happening
 
-The repository includes:
+The rest of the repository includes the all the necessary apartuses you'll need to take a base model and:
+- Get the data necessary to train it
+- Tokenize the data so it can be fed into the model
+- Define a configuration for the training setup
+- Train a model
+- Understand core peformance metrics (e.g. loss, compute-normalized loss)
+- Interact with a model you've trained
+
+As you can guess, the core model itself ends up being pretty simple in comparison to all the supporting infra
+necessary to train and evaluate the models!
+
 
 ### Models
 
 * Transformer models at three different levels of abstraction:
-- *Custom Transfomrer*: A tensor-level implementation with explicitly defined backpropagation
-- *Torch Transfomer*: A PyTorch implementation almost exactly mirrors the custom transformer to show the abstractions by PyTorch
-* *Baseline Transformer*: A PyTorch transformer with minor optimizations to improve the performance - both in compute efficiency and model capability. 
 
 ### Tools
 
