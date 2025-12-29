@@ -188,8 +188,8 @@ logger.finish()
 </details>
 
 ### Validation & Evaluation
-
-The `validate.py` script provides model evaluation and interactive text generation:
+<details>
+<summary>Provides model evaluation and interactive text generation. </summary>
 
 ```bash
 # Evaluate on validation set (loss, perplexity)
@@ -234,6 +234,8 @@ In interactive chat mode:
 - `temp 0.5` - Adjust temperature
 - `topk 40` - Adjust top-k sampling
 - `quit` / `exit` / `q` - Exit chat
+
+</details>
 
 ### Visualizer
 <details>
