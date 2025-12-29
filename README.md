@@ -1,10 +1,10 @@
 # Transformers from Scratch
 
-Despite how prolific and simple transformers are, most implementations you'll find will include various abstractions
+Despite how prolific and simple transformers are, many implementations you'll find will include various abstractions
 and optimizations which obfuscate the core architecture and learning process. 
 
-I created this repository in effort to ease understanding the of the low-level implementation of transformers, the
-core being two simple models:
+This simple, small repo is my personal effort to understand transformer fundamentals. At it's core, this is
+distilled into to simple implementations of a transformer model:
 
 - *Custom Transfomrer*: A tensor-level implementation with explicitly defined backpropagation
 - *Torch Transfomer*: A PyTorch implementation almost exactly mirrors the custom transformer to show the abstractions by PyTorch
@@ -27,14 +27,17 @@ The rest of the repository includes the all the necessary apartuses you'll need 
 As you can guess, the core model itself ends up being pretty simple in comparison to all the supporting infra
 necessary to train and evaluate the models!
 
+### Examples
 
-### Models
 
-* Transformer models at three different levels of abstraction:
+### Repo Structure
+
+This includes datasets, models, and outputs from experiments. More details in the assets folder. 
 
 ### Tools
+<details>
+<summary>Tools for dataset management and tokenization.</summary>
 
-Tools for dataset management and tokenization. Run with `python -m tools.<module>`.
 
 #### Dataset Download
 
@@ -44,6 +47,7 @@ Download datasets from HuggingFace Hub:
 python -m tools.download_dataset roneneldan/TinyStories
 python -m tools.download_dataset HuggingFaceFW/fineweb --config sample-10BT
 ```
+
 
 #### Tokenization
 
@@ -84,8 +88,11 @@ tokenizer_path = train_tokenizer('tinystories', vocab_size=4096)
 # Pre-tokenize for efficient training
 output = pretokenize_dataset('tinystories', tokenizer_path, max_length=256)
 ```
+</details>
 
 ### Training
+<details>
+<summary>Details of the training scripts and process.</summary>
 
 Unified training script supporting both model types:
 
@@ -178,6 +185,7 @@ logger.log_step(step=100, epoch=0, loss=2.5, learning_rate=1e-4)
 logger.log_validation(step=100, epoch=0, loss=2.3, perplexity=10.0)
 logger.finish()
 ```
+</details>
 
 ### Validation & Evaluation
 
@@ -228,8 +236,10 @@ In interactive chat mode:
 - `quit` / `exit` / `q` - Exit chat
 
 ### Visualizer
-
-Web-based training comparison tool for analyzing and comparing training runs:
+<details>
+<summary>
+Web-based training comparison tool for analyzing and comparing training runs.
+</summary>
 
 ```bash
 # Launch the visualizer
@@ -269,9 +279,8 @@ run = load_training_log('assets/logs/my_experiment.json')
 fig = create_loss_curves({'my_run': run})
 fig.show()
 ```
+</details>
 
-### Assets
 
-This includes datasets, models, and outputs from experiments. More details in the assets folder. 
 
 
