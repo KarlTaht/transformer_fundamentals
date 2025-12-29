@@ -28,12 +28,12 @@ necessary to train and evaluate the models. Thanks Claude for your help in that!
 
 Once you've got the basic setup (dataset, tokenizer), it's pretty quick to train and compare models!
 
-1. Kicking off Training 
+#### Step 1: Kicking off Training
 
 Using tmux (or an alternative), you can easily train a model:
 `python scripts/train.py --config configs/torch_25m.yaml --model-type torch`
 
-2. Seeing is Believing
+#### Step 2: Visualizing Loss Curves
 
 You can visualize the results in real-time by opening the visualizer in parallel:
 `python -m visualizer`
@@ -42,57 +42,17 @@ You can visualize the results in real-time by opening the visualizer in parallel
 
 By default, ever 500 steps and after each validation, logs will be written. Refresh and see the progress!
 
-3. Comparing architectures
+#### Step 3: Putting progress in perspective
 
-The visualizer can also be used to compare multiple model configurations to see how loss curves change. This can be seen both in terms of per-training step, but also in terms of compute FLOPs.
-
-4. Putting it in perspective
-
-While perplexity is more intuitive than loss, it's still not exactly clear what to expect. On 25-50M model for the TinyStories dataset, here's a more intuitive idea of what to expect. So when you think about "perplexity is how many tokens the model is chosing from" you have a more tangible idea of what that means. 
+While perplexity is more intuitive than loss, it's still not exactly clear what to expect. On 25-50M model for the TinyStories dataset, here's a more intuitive idea of what to expect. So when you think about "perplexity is how many tokens the model is chosing from" you have a more tangible idea of what that means.
 
 Once you've trained a model, you can experience this directly though the `--chat` interface:
 
 ![Chat Interface](docs/chat.png)
 
-```bash
-# Example 25M Model (val_loss=2.33)
-python scripts/validate.py \
-    --checkpoint assets/models/torch_25m/best.pt \
-    --config configs/torch_25m.yaml \
-    --model-type torch \
-    --chat
-
-Device: cuda
-Loading checkpoint: assets/models/torch_25m/best.pt
-Loading config: configs/torch_25m.yaml
-Loading tokenizer: tinystories_bpe_4096
-Model: 24,256,000 params (24.3M)
-Checkpoint: epoch=3, val_loss=2.3270
-
-==================================================
-CHAT MODE
-==================================================
-Type your prompt and press Enter.
-Commands:
-  quit/exit/q  - Exit chat
-  temp X       - Set temperature (e.g., temp 0.5)
-  topk X       - Set top-k (e.g., topk 40)
-
-Settings: max_length=100, temperature=0.8, top_k=50
-==================================================
-
-You: Once upon a time
-Model: Once upon a time, there was a happy boy. He was so cheerful, and he loved to play all day.
-
-One day, he was playing with his favorite toy when it suddenly broke. He felt so sad and confused, and he didn't know what to do.
-
-But then he got an idea. He started to play a trick on the broken toy and soon he was laughing and smiling. He was so happy, and he didn't feel sad anymore.
-```
-
-
 Note, the model isn't fine-tuned to provide Q&A style response, instead it's aiming to predict from "Once upon a time ..." to tell a reasonable story. Here's a general idea of what to expect
 
-```markdown
+
 | Loss (approx) | Perplexity | What you typically see |
 |---------------|------------|------------------------|
 | **5.0+** | ~150+ | Random tokens, maybe common words like "the", "a", "said" appearing frequently |
@@ -102,7 +62,12 @@ Note, the model isn't fine-tuned to provide Q&A style response, instead it's aim
 | **1.5 - 2.0** | ~4.5-7 | Solid TinyStories quality. Beginning/middle/end structure. Morals appear. Characters have consistent traits within a story. |
 | **1.2 - 1.5** | ~3.3-4.5 | Approaching ceiling for this scale. Clean grammar, age-appropriate vocabulary, stories feel complete. Occasional creativity. |
 | **< 1.2** | < 3.3 | Likely overfitting or you've got a bigger model than you think. Diminishing returns. |
-```
+
+#### Step 4: Comparing models.
+
+The visualizer can also be used to compare multiple model configurations to see how loss curves change. This can be seen both in terms of per-training step, but also in terms of compute FLOPs. For example, here's a comparison of a 25M and 50M transformer model:
+
+
 
 With that, happy training! 
 
