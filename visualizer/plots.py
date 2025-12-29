@@ -13,8 +13,12 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from training import TrainingRun
 from .compute import compute_cumulative_flops
 
-# Color palette for up to 4 runs (colorblind-friendly, easy to distinguish)
-RUN_COLORS = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
+# Color palette for runs - each run gets a train/val color pair
+# Train colors are darker/saturated, val colors are lighter variants
+RUN_COLORS_TRAIN = ["#1f77b4", "#d62728", "#2ca02c", "#9467bd"]  # Blue, Red, Green, Purple
+RUN_COLORS_VAL = ["#7fcdff", "#ff9896", "#98df8a", "#c5b0d5"]    # Light variants
+# Legacy single-color palette (for backwards compatibility)
+RUN_COLORS = RUN_COLORS_TRAIN
 
 
 def create_loss_curves(
@@ -36,7 +40,8 @@ def create_loss_curves(
     fig = go.Figure()
 
     for i, (name, run) in enumerate(runs.items()):
-        color = RUN_COLORS[i % len(RUN_COLORS)]
+        train_color = RUN_COLORS_TRAIN[i % len(RUN_COLORS_TRAIN)]
+        val_color = RUN_COLORS_VAL[i % len(RUN_COLORS_VAL)]
 
         # Training loss (solid line)
         if show_train and run.train_metrics:
@@ -47,11 +52,11 @@ def create_loss_curves(
                 y=losses,
                 mode='lines',
                 name=f"{name} (train)",
-                line=dict(color=color, width=2),
+                line=dict(color=train_color, width=2),
                 hovertemplate="Step: %{x}<br>Loss: %{y:.4f}<extra></extra>",
             ))
 
-        # Validation loss (dashed line, markers)
+        # Validation loss (solid line, markers) - different color
         if show_val and run.val_metrics:
             steps = [m.step for m in run.val_metrics]
             losses = [m.loss for m in run.val_metrics]
@@ -60,7 +65,7 @@ def create_loss_curves(
                 y=losses,
                 mode='lines+markers',
                 name=f"{name} (val)",
-                line=dict(color=color, dash='dash', width=2),
+                line=dict(color=val_color, width=2),
                 marker=dict(size=8),
                 hovertemplate="Step: %{x}<br>Val Loss: %{y:.4f}<extra></extra>",
             ))
@@ -271,7 +276,8 @@ def create_flops_normalized_loss(runs: Dict[str, TrainingRun]) -> go.Figure:
         if not run.train_metrics:
             continue
 
-        color = RUN_COLORS[i % len(RUN_COLORS)]
+        train_color = RUN_COLORS_TRAIN[i % len(RUN_COLORS_TRAIN)]
+        val_color = RUN_COLORS_VAL[i % len(RUN_COLORS_VAL)]
 
         # Get cumulative FLOPs and corresponding losses
         steps, tflops = compute_cumulative_flops(run)
@@ -286,7 +292,7 @@ def create_flops_normalized_loss(runs: Dict[str, TrainingRun]) -> go.Figure:
             y=losses,
             mode='lines',
             name=f"{name} (train)",
-            line=dict(color=color, width=2),
+            line=dict(color=train_color, width=2),
             hovertemplate="TFLOPs: %{x:.2f}<br>Loss: %{y:.4f}<extra></extra>",
         ))
 
@@ -310,7 +316,7 @@ def create_flops_normalized_loss(runs: Dict[str, TrainingRun]) -> go.Figure:
                     y=val_losses_filtered,
                     mode='markers',
                     name=f"{name} (val)",
-                    marker=dict(color=color, size=10, symbol='diamond'),
+                    marker=dict(color=val_color, size=10, symbol='diamond'),
                     hovertemplate="TFLOPs: %{x:.2f}<br>Val Loss: %{y:.4f}<extra></extra>",
                 ))
 
@@ -328,6 +334,205 @@ def create_flops_normalized_loss(runs: Dict[str, TrainingRun]) -> go.Figure:
         hovermode="x unified",
         template="plotly_white",
     )
+
+    return fig
+
+
+def create_combined_steps_plot(
+    runs: Dict[str, TrainingRun],
+    show_train: bool = True,
+    show_val: bool = True,
+) -> go.Figure:
+    """
+    Create combined loss and perplexity plot with dual y-axis.
+
+    X-axis: Training Steps
+    Left Y-axis: Loss (training + validation)
+    Right Y-axis: Perplexity (validation only)
+
+    Args:
+        runs: Dict of run_name -> TrainingRun
+        show_train: Include training loss (solid lines)
+        show_val: Include validation loss and perplexity (dashed/dotted)
+
+    Returns:
+        Plotly Figure with loss and perplexity curves
+    """
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    for i, (name, run) in enumerate(runs.items()):
+        train_color = RUN_COLORS_TRAIN[i % len(RUN_COLORS_TRAIN)]
+        val_color = RUN_COLORS_VAL[i % len(RUN_COLORS_VAL)]
+
+        # Training loss (solid line, primary y-axis)
+        if show_train and run.train_metrics:
+            steps = [m.step for m in run.train_metrics]
+            losses = [m.loss for m in run.train_metrics]
+            fig.add_trace(
+                go.Scatter(
+                    x=steps,
+                    y=losses,
+                    mode='lines',
+                    name=f"{name} (train)",
+                    line=dict(color=train_color, width=2),
+                    hovertemplate="Step: %{x}<br>Train Loss: %{y:.4f}<extra></extra>",
+                ),
+                secondary_y=False,
+            )
+
+        # Validation loss (solid line, primary y-axis) - different color
+        if show_val and run.val_metrics:
+            val_steps = [m.step for m in run.val_metrics]
+            val_losses = [m.loss for m in run.val_metrics]
+            fig.add_trace(
+                go.Scatter(
+                    x=val_steps,
+                    y=val_losses,
+                    mode='lines+markers',
+                    name=f"{name} (val)",
+                    line=dict(color=val_color, width=2),
+                    marker=dict(size=6),
+                    hovertemplate="Step: %{x}<br>Val Loss: %{y:.4f}<extra></extra>",
+                ),
+                secondary_y=False,
+            )
+
+            # Perplexity (dashed line, secondary y-axis) - same color as val
+            perplexities = [m.perplexity for m in run.val_metrics]
+            fig.add_trace(
+                go.Scatter(
+                    x=val_steps,
+                    y=perplexities,
+                    mode='lines+markers',
+                    name=f"{name} (ppl)",
+                    line=dict(color=val_color, dash='dash', width=2),
+                    marker=dict(size=6, symbol='diamond'),
+                    hovertemplate="Step: %{x}<br>Perplexity: %{y:.2f}<extra></extra>",
+                ),
+                secondary_y=True,
+            )
+
+    fig.update_layout(
+        title="Loss & Perplexity vs Training Steps",
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="left",
+            x=0,
+        ),
+        hovermode="x unified",
+        template="plotly_white",
+        height=350,
+    )
+    fig.update_xaxes(title_text="Step")
+    fig.update_yaxes(title_text="Loss", secondary_y=False)
+    fig.update_yaxes(title_text="Perplexity", secondary_y=True)
+
+    return fig
+
+
+def create_combined_flops_plot(runs: Dict[str, TrainingRun]) -> go.Figure:
+    """
+    Create loss and perplexity vs cumulative FLOPs plot.
+
+    Enables fair comparison across different model sizes by normalizing
+    by compute instead of training steps.
+
+    X-axis: Cumulative TFLOPs
+    Left Y-axis: Loss (training + validation)
+    Right Y-axis: Perplexity (validation only)
+
+    Args:
+        runs: Dict of run_name -> TrainingRun
+
+    Returns:
+        Plotly Figure with loss and perplexity vs compute
+    """
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    for i, (name, run) in enumerate(runs.items()):
+        if not run.train_metrics:
+            continue
+
+        train_color = RUN_COLORS_TRAIN[i % len(RUN_COLORS_TRAIN)]
+        val_color = RUN_COLORS_VAL[i % len(RUN_COLORS_VAL)]
+        steps, tflops = compute_cumulative_flops(run)
+        losses = [m.loss for m in run.train_metrics]
+
+        if not tflops:
+            continue
+
+        # Training loss vs FLOPs (solid line)
+        fig.add_trace(
+            go.Scatter(
+                x=tflops,
+                y=losses,
+                mode='lines',
+                name=f"{name} (train)",
+                line=dict(color=train_color, width=2),
+                hovertemplate="TFLOPs: %{x:.2f}<br>Loss: %{y:.4f}<extra></extra>",
+            ),
+            secondary_y=False,
+        )
+
+        # Validation loss and perplexity vs FLOPs
+        if run.val_metrics:
+            val_steps = [m.step for m in run.val_metrics]
+            val_losses = [m.loss for m in run.val_metrics]
+            perplexities = [m.perplexity for m in run.val_metrics]
+
+            step_to_flops = dict(zip(steps, tflops))
+            val_flops, val_losses_f, val_ppl_f = [], [], []
+            for step, loss, ppl in zip(val_steps, val_losses, perplexities):
+                if step in step_to_flops:
+                    val_flops.append(step_to_flops[step])
+                    val_losses_f.append(loss)
+                    val_ppl_f.append(ppl)
+
+            if val_flops:
+                # Val loss (markers) - different color
+                fig.add_trace(
+                    go.Scatter(
+                        x=val_flops,
+                        y=val_losses_f,
+                        mode='markers',
+                        name=f"{name} (val)",
+                        marker=dict(color=val_color, size=10, symbol='circle'),
+                        hovertemplate="TFLOPs: %{x:.2f}<br>Val Loss: %{y:.4f}<extra></extra>",
+                    ),
+                    secondary_y=False,
+                )
+
+                # Perplexity (diamond markers, secondary y-axis) - same as val
+                fig.add_trace(
+                    go.Scatter(
+                        x=val_flops,
+                        y=val_ppl_f,
+                        mode='markers',
+                        name=f"{name} (ppl)",
+                        marker=dict(color=val_color, size=10, symbol='diamond'),
+                        hovertemplate="TFLOPs: %{x:.2f}<br>Perplexity: %{y:.2f}<extra></extra>",
+                    ),
+                    secondary_y=True,
+                )
+
+    fig.update_layout(
+        title="Loss & Perplexity vs Compute (FLOPs)",
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="left",
+            x=0,
+        ),
+        hovermode="x unified",
+        template="plotly_white",
+        height=350,
+    )
+    fig.update_xaxes(title_text="Cumulative TFLOPs")
+    fig.update_yaxes(title_text="Loss", secondary_y=False)
+    fig.update_yaxes(title_text="Perplexity", secondary_y=True)
 
     return fig
 

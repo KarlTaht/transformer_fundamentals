@@ -32,6 +32,9 @@ from .plots import (
     create_throughput_plot,
     create_flops_normalized_loss,
     create_empty_figure,
+    # New combined plots for two-column layout
+    create_combined_steps_plot,
+    create_combined_flops_plot,
 )
 from .data import discover_training_logs, load_runs_from_paths, get_log_choices
 from .compare import compute_run_summary, create_summary_table, format_config_comparison
@@ -48,6 +51,8 @@ __all__ = [
     "create_throughput_plot",
     "create_flops_normalized_loss",
     "create_empty_figure",
+    "create_combined_steps_plot",
+    "create_combined_flops_plot",
     # Data utilities
     "discover_training_logs",
     "load_runs_from_paths",
