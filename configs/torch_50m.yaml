@@ -18,8 +18,8 @@ data:
   val_subset_size: 1000
 
 training:
-  batch_size: 16
-  gradient_accumulation_steps: 2  # effective batch size = 32
+  batch_size: 32
+  gradient_accumulation_steps: 1  # effective batch size = 32
   learning_rate: 0.0003
   min_learning_rate: 0.00003
   lr_decay: cosine

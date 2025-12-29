@@ -24,6 +24,13 @@ The rest of the repository includes the all the necessary apartuses you'll need 
 As you can guess, the core model itself ends up being pretty simple in comparison to all the supporting infra
 necessary to train and evaluate the models. Thanks Claude for your help in that!
 
+> [!NOTE]
+> **Hardware and Configuration**
+>
+> I've developed the example configs in this repo for Nvidia GPU with 16GB+ VRAM. If you have less VRAM, just reduce batch_size and increase gradient accumulation steps to compensate.
+>
+> In theory, it shouldn't be hard to convert this to a Mac M-chip, but I've found if the goal is learning, it's worth the investment of an nVidia GPU - even if just a cheap/basic one (RTX 3060's have 12GB VRAM and are commonly under $200).
+
 ### Example
 
 Once you've got the basic setup (dataset, tokenizer), it's pretty quick to train and compare models!
@@ -90,13 +97,6 @@ python scripts/train.py --config configs/test_torch.yaml --model-type torch
 python -m visualizer
 ```
 
-#### Quick Notes on Hardware and Configuration
-
-I've developed the example configs in this repo for Nvidia GPU with 16GB+ VRAM. If you have less 
-VRAM, it should just reduce batch_size and increase gradient accumulation steps to compensate. 
-
-In theory, it shouldn't be hard to convert this to a Mac M-chip, but I've found if the goal is 
-learning, it's worth the investment of a nVidia GPU - even if just a cheap/basic one (RTX 3060's have 12GB VRAM and are commonly under $200).
 
 ### Repository Structure
 <details>
