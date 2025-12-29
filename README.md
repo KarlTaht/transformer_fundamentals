@@ -38,15 +38,13 @@ Using tmux (or an alternative), you can easily train a model:
 You can visualize the results in real-time by opening the visualizer in parallel:
 `python -m visualizer`
 
-<TODO: Add Screenshot>
+![Training Visualizer](docs/train.png)
 
 By default, ever 500 steps and after each validation, logs will be written. Refresh and see the progress!
 
 3. Comparing architectures
 
-The visualizer can also be used to compare multiple model configurations to see how loss curves change. This can be seen both in terms of per-training step, but also in terms of compute FLOPs. 
-
-<TODO: Add Screenshot>
+The visualizer can also be used to compare multiple model configurations to see how loss curves change. This can be seen both in terms of per-training step, but also in terms of compute FLOPs.
 
 4. Putting it in perspective
 
@@ -54,16 +52,41 @@ While perplexity is more intuitive than loss, it's still not exactly clear what 
 
 Once you've trained a model, you can experience this directly though the `--chat` interface:
 
-<TODO: Add Chat example>
+![Chat Interface](docs/chat.png)
 
 ```bash
-# Example 25M Model w/ TODO Loss
+# Example 25M Model (val_loss=2.33)
 python scripts/validate.py \
     --checkpoint assets/models/torch_25m/best.pt \
     --config configs/torch_25m.yaml \
     --model-type torch \
     --chat
-...
+
+Device: cuda
+Loading checkpoint: assets/models/torch_25m/best.pt
+Loading config: configs/torch_25m.yaml
+Loading tokenizer: tinystories_bpe_4096
+Model: 24,256,000 params (24.3M)
+Checkpoint: epoch=3, val_loss=2.3270
+
+==================================================
+CHAT MODE
+==================================================
+Type your prompt and press Enter.
+Commands:
+  quit/exit/q  - Exit chat
+  temp X       - Set temperature (e.g., temp 0.5)
+  topk X       - Set top-k (e.g., topk 40)
+
+Settings: max_length=100, temperature=0.8, top_k=50
+==================================================
+
+You: Once upon a time
+Model: Once upon a time, there was a happy boy. He was so cheerful, and he loved to play all day.
+
+One day, he was playing with his favorite toy when it suddenly broke. He felt so sad and confused, and he didn't know what to do.
+
+But then he got an idea. He started to play a trick on the broken toy and soon he was laughing and smiling. He was so happy, and he didn't feel sad anymore.
 ```
 
 
