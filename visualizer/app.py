@@ -12,11 +12,10 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from .data import get_log_choices, load_runs_from_paths
 from .plots import (
-    create_loss_curves,
-    create_validation_curves,
+    create_combined_steps_plot,
+    create_combined_flops_plot,
     create_lr_schedule_plot,
     create_throughput_plot,
-    create_flops_normalized_loss,
     create_empty_figure,
 )
 from .compare import create_summary_table, format_config_comparison
@@ -30,28 +29,27 @@ def update_visualizations(selected_logs: List[str]) -> Tuple:
         selected_logs: List of selected log file paths
 
     Returns:
-        Tuple of (loss_fig, val_fig, flops_fig, lr_fig, throughput_fig, summary_df, config_md)
+        Tuple of (loss_steps_fig, loss_flops_fig, lr_fig, throughput_fig, summary_df, config_md)
     """
     if not selected_logs:
         empty = create_empty_figure()
-        return empty, empty, empty, empty, empty, [], "No runs selected"
+        return empty, empty, empty, empty, [], "No runs selected"
 
     runs = load_runs_from_paths(selected_logs)
 
     if not runs:
         empty = create_empty_figure("Failed to load runs")
-        return empty, empty, empty, empty, empty, [], "Failed to load selected runs"
+        return empty, empty, empty, empty, [], "Failed to load selected runs"
 
     # Generate all visualizations
-    loss_fig = create_loss_curves(runs)
-    val_fig = create_validation_curves(runs)
-    flops_fig = create_flops_normalized_loss(runs)
+    loss_steps_fig = create_combined_steps_plot(runs)
+    loss_flops_fig = create_combined_flops_plot(runs)
     lr_fig = create_lr_schedule_plot(runs)
     throughput_fig = create_throughput_plot(runs)
     summary_data = create_summary_table(runs)
     config_md = format_config_comparison(runs)
 
-    return loss_fig, val_fig, flops_fig, lr_fig, throughput_fig, summary_data, config_md
+    return loss_steps_fig, loss_flops_fig, lr_fig, throughput_fig, summary_data, config_md
 
 
 def refresh_log_choices() -> dict:
@@ -66,8 +64,9 @@ def create_app() -> gr.Blocks:
     with gr.Blocks(title="Training Comparison") as app:
         gr.Markdown("# Training Run Comparison")
         gr.Markdown(
-            "Select 1-4 training runs to compare loss curves, compute efficiency, "
-            "learning rate schedules, throughput, and configurations."
+            "Select 1-4 training runs to compare. "
+            "**Left column**: metrics vs training steps. "
+            "**Right column**: metrics vs compute (FLOPs)."
         )
 
         # Run Selection Row
@@ -81,29 +80,27 @@ def create_app() -> gr.Blocks:
                     info="Choose log files from assets/logs/",
                 )
             with gr.Column(scale=1):
-                refresh_btn = gr.Button("🔄 Refresh", variant="secondary", size="sm")
+                refresh_btn = gr.Button("Refresh", variant="secondary", size="sm")
 
-        # Main Visualization Tabs
-        with gr.Tabs():
-            with gr.Tab("Loss"):
-                loss_plot = gr.Plot(label="Training & Validation Loss")
-
-            with gr.Tab("Validation"):
-                val_plot = gr.Plot(label="Validation Loss & Perplexity")
-
-            with gr.Tab("FLOPs"):
-                flops_plot = gr.Plot(label="Loss vs Compute")
-
-            with gr.Tab("Learning Rate"):
+        # Two-Column Visualization Layout
+        with gr.Row():
+            # Left Column: Model Performance (X-axis: Steps)
+            with gr.Column(scale=1):
+                gr.Markdown("### Model Performance (Steps)")
+                loss_steps_plot = gr.Plot(label="Loss & Perplexity vs Steps")
                 lr_plot = gr.Plot(label="Learning Rate Schedule")
 
-            with gr.Tab("Throughput"):
-                throughput_plot = gr.Plot(label="Tokens/Second")
+            # Right Column: Compute Performance (X-axis: FLOPs)
+            with gr.Column(scale=1):
+                gr.Markdown("### Compute Performance (FLOPs)")
+                loss_flops_plot = gr.Plot(label="Loss & Perplexity vs FLOPs")
+                throughput_plot = gr.Plot(label="Throughput (Tokens/sec)")
 
-            with gr.Tab("Config"):
-                config_display = gr.Markdown(label="Configuration Comparison")
+        # Config Comparison (collapsible)
+        with gr.Accordion("Configuration Comparison", open=False):
+            config_display = gr.Markdown(label="Configuration Comparison")
 
-        # Summary Table (always visible below tabs)
+        # Summary Table (always visible)
         gr.Markdown("## Summary")
         summary_table = gr.DataFrame(
             headers=["Run", "Type", "Params", "Steps", "Best Val Loss",
@@ -116,7 +113,7 @@ def create_app() -> gr.Blocks:
         log_dropdown.change(
             fn=update_visualizations,
             inputs=[log_dropdown],
-            outputs=[loss_plot, val_plot, flops_plot, lr_plot, throughput_plot,
+            outputs=[loss_steps_plot, loss_flops_plot, lr_plot, throughput_plot,
                     summary_table, config_display],
         )
 

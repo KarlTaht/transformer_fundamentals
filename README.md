@@ -27,12 +27,82 @@ The rest of the repository includes the all the necessary apartuses you'll need 
 As you can guess, the core model itself ends up being pretty simple in comparison to all the supporting infra
 necessary to train and evaluate the models!
 
-### Examples
+### Quickstart
 
+```bash
+# Clone and install
+git clone <repo-url>
+cd transformer_fundamentals
+pip install -e .
 
-### Repo Structure
+# Verify installation
+python scripts/verify_install.py
 
-This includes datasets, models, and outputs from experiments. More details in the assets folder. 
+# Quick training test
+python scripts/train.py --config configs/test_torch.yaml --model-type torch
+
+# Launch visualizer to compare runs
+python -m visualizer
+```
+
+### Repository Structure
+<details>
+<summary>Directory layout and naming conventions.</summary>
+
+```
+transformer_fundamentals/
+├── models/                     # Model implementations
+│   ├── custom_transformer.py   # Tensor-level transformer with manual backprop
+│   ├── torch_transformer.py    # PyTorch autograd transformer
+│   ├── base.py                 # Shared base classes and utilities
+│   ├── config.py               # Model configuration dataclass
+│   └── wrapper.py              # Unified model interface
+│
+├── training/                   # Training infrastructure
+│   ├── checkpoint_manager.py   # Save/load checkpoints with rotation
+│   ├── evaluator.py            # Validation loss and perplexity computation
+│   └── logger.py               # JSON-structured training logging
+│
+├── tools/                      # Data preparation utilities
+│   ├── dataset_registry.py     # Dataset discovery and loading
+│   ├── download_dataset.py     # HuggingFace dataset downloader
+│   └── tokenization.py         # BPE tokenizer training and analysis
+│
+├── visualizer/                 # Post-hoc training analysis (Gradio web UI)
+│   ├── app.py                  # Main application interface
+│   ├── plots.py                # Plotly chart generation
+│   ├── data.py                 # Log file discovery and loading
+│   ├── compare.py              # Summary statistics and config comparison
+│   └── compute.py              # FLOPs estimation and metrics
+│
+├── scripts/                    # Command-line entry points
+│   ├── train.py                # Unified training script (both model types)
+│   └── validate.py             # Evaluation and interactive generation
+│
+├── configs/                    # YAML experiment configurations
+│   └── {experiment_name}.yaml  # Training configurations
+│
+└── assets/                     # Generated outputs (gitignored)
+    ├── logs/                   # JSON training logs
+    ├── models/                 # Saved checkpoints
+    └── datasets/               # Downloaded data
+```
+
+#### Naming Conventions
+
+**Config Files** (`configs/`):
+- Pattern: `{experiment_name}.yaml`
+- The `experiment_name` field inside the YAML should match the filename
+
+**Log Files** (`assets/logs/`):
+- Pattern: `{experiment_name}_{YYYYMMDD}_{HHMMSS}.json`
+- Timestamp is automatically appended when training starts
+
+**Checkpoints** (`assets/models/`):
+- Directory: `assets/models/{experiment_name}/`
+- Files: `best.pt` (best validation), `latest.pt` (most recent), `checkpoint_epoch{N}_step{S}.pt`
+
+</details>
 
 ### Tools
 <details>
@@ -263,6 +333,8 @@ python -m visualizer --port 8080
 - **Throughput**: Compare tokens/second performance
 - **Config Comparison**: Side-by-side model and training configuration tables
 - **Summary Table**: Quick comparison of key metrics (params, best loss, TFLOPs)
+
+Note: FLOPs use the Chinchilla approximation (6 * N * D) where N = num model params, D = num tokens processed.
 
 #### Python API
 
