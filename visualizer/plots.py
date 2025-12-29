@@ -13,8 +13,12 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from training import TrainingRun
 from .compute import compute_cumulative_flops
 
-# Color palette for up to 4 runs (colorblind-friendly, easy to distinguish)
-RUN_COLORS = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
+# Color palette for runs - each run gets a train/val color pair
+# Train colors are darker/saturated, val colors are lighter variants
+RUN_COLORS_TRAIN = ["#1f77b4", "#d62728", "#2ca02c", "#9467bd"]  # Blue, Red, Green, Purple
+RUN_COLORS_VAL = ["#7fcdff", "#ff9896", "#98df8a", "#c5b0d5"]    # Light variants
+# Legacy single-color palette (for backwards compatibility)
+RUN_COLORS = RUN_COLORS_TRAIN
 
 
 def create_loss_curves(
@@ -36,7 +40,8 @@ def create_loss_curves(
     fig = go.Figure()
 
     for i, (name, run) in enumerate(runs.items()):
-        color = RUN_COLORS[i % len(RUN_COLORS)]
+        train_color = RUN_COLORS_TRAIN[i % len(RUN_COLORS_TRAIN)]
+        val_color = RUN_COLORS_VAL[i % len(RUN_COLORS_VAL)]
 
         # Training loss (solid line)
         if show_train and run.train_metrics:
@@ -47,11 +52,11 @@ def create_loss_curves(
                 y=losses,
                 mode='lines',
                 name=f"{name} (train)",
-                line=dict(color=color, width=2),
+                line=dict(color=train_color, width=2),
                 hovertemplate="Step: %{x}<br>Loss: %{y:.4f}<extra></extra>",
             ))
 
-        # Validation loss (dashed line, markers)
+        # Validation loss (solid line, markers) - different color
         if show_val and run.val_metrics:
             steps = [m.step for m in run.val_metrics]
             losses = [m.loss for m in run.val_metrics]
@@ -60,7 +65,7 @@ def create_loss_curves(
                 y=losses,
                 mode='lines+markers',
                 name=f"{name} (val)",
-                line=dict(color=color, dash='dash', width=2),
+                line=dict(color=val_color, width=2),
                 marker=dict(size=8),
                 hovertemplate="Step: %{x}<br>Val Loss: %{y:.4f}<extra></extra>",
             ))
@@ -271,7 +276,8 @@ def create_flops_normalized_loss(runs: Dict[str, TrainingRun]) -> go.Figure:
         if not run.train_metrics:
             continue
 
-        color = RUN_COLORS[i % len(RUN_COLORS)]
+        train_color = RUN_COLORS_TRAIN[i % len(RUN_COLORS_TRAIN)]
+        val_color = RUN_COLORS_VAL[i % len(RUN_COLORS_VAL)]
 
         # Get cumulative FLOPs and corresponding losses
         steps, tflops = compute_cumulative_flops(run)
@@ -286,7 +292,7 @@ def create_flops_normalized_loss(runs: Dict[str, TrainingRun]) -> go.Figure:
             y=losses,
             mode='lines',
             name=f"{name} (train)",
-            line=dict(color=color, width=2),
+            line=dict(color=train_color, width=2),
             hovertemplate="TFLOPs: %{x:.2f}<br>Loss: %{y:.4f}<extra></extra>",
         ))
 
@@ -310,7 +316,7 @@ def create_flops_normalized_loss(runs: Dict[str, TrainingRun]) -> go.Figure:
                     y=val_losses_filtered,
                     mode='markers',
                     name=f"{name} (val)",
-                    marker=dict(color=color, size=10, symbol='diamond'),
+                    marker=dict(color=val_color, size=10, symbol='diamond'),
                     hovertemplate="TFLOPs: %{x:.2f}<br>Val Loss: %{y:.4f}<extra></extra>",
                 ))
 
@@ -355,7 +361,8 @@ def create_combined_steps_plot(
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
     for i, (name, run) in enumerate(runs.items()):
-        color = RUN_COLORS[i % len(RUN_COLORS)]
+        train_color = RUN_COLORS_TRAIN[i % len(RUN_COLORS_TRAIN)]
+        val_color = RUN_COLORS_VAL[i % len(RUN_COLORS_VAL)]
 
         # Training loss (solid line, primary y-axis)
         if show_train and run.train_metrics:
@@ -367,13 +374,13 @@ def create_combined_steps_plot(
                     y=losses,
                     mode='lines',
                     name=f"{name} (train)",
-                    line=dict(color=color, width=2),
+                    line=dict(color=train_color, width=2),
                     hovertemplate="Step: %{x}<br>Train Loss: %{y:.4f}<extra></extra>",
                 ),
                 secondary_y=False,
             )
 
-        # Validation loss (dashed line, primary y-axis)
+        # Validation loss (solid line, primary y-axis) - different color
         if show_val and run.val_metrics:
             val_steps = [m.step for m in run.val_metrics]
             val_losses = [m.loss for m in run.val_metrics]
@@ -383,14 +390,14 @@ def create_combined_steps_plot(
                     y=val_losses,
                     mode='lines+markers',
                     name=f"{name} (val)",
-                    line=dict(color=color, dash='dash', width=2),
+                    line=dict(color=val_color, width=2),
                     marker=dict(size=6),
                     hovertemplate="Step: %{x}<br>Val Loss: %{y:.4f}<extra></extra>",
                 ),
                 secondary_y=False,
             )
 
-            # Perplexity (dotted line, secondary y-axis)
+            # Perplexity (dashed line, secondary y-axis) - same color as val
             perplexities = [m.perplexity for m in run.val_metrics]
             fig.add_trace(
                 go.Scatter(
@@ -398,7 +405,7 @@ def create_combined_steps_plot(
                     y=perplexities,
                     mode='lines+markers',
                     name=f"{name} (ppl)",
-                    line=dict(color=color, dash='dot', width=2),
+                    line=dict(color=val_color, dash='dash', width=2),
                     marker=dict(size=6, symbol='diamond'),
                     hovertemplate="Step: %{x}<br>Perplexity: %{y:.2f}<extra></extra>",
                 ),
@@ -448,7 +455,8 @@ def create_combined_flops_plot(runs: Dict[str, TrainingRun]) -> go.Figure:
         if not run.train_metrics:
             continue
 
-        color = RUN_COLORS[i % len(RUN_COLORS)]
+        train_color = RUN_COLORS_TRAIN[i % len(RUN_COLORS_TRAIN)]
+        val_color = RUN_COLORS_VAL[i % len(RUN_COLORS_VAL)]
         steps, tflops = compute_cumulative_flops(run)
         losses = [m.loss for m in run.train_metrics]
 
@@ -462,7 +470,7 @@ def create_combined_flops_plot(runs: Dict[str, TrainingRun]) -> go.Figure:
                 y=losses,
                 mode='lines',
                 name=f"{name} (train)",
-                line=dict(color=color, width=2),
+                line=dict(color=train_color, width=2),
                 hovertemplate="TFLOPs: %{x:.2f}<br>Loss: %{y:.4f}<extra></extra>",
             ),
             secondary_y=False,
@@ -483,27 +491,27 @@ def create_combined_flops_plot(runs: Dict[str, TrainingRun]) -> go.Figure:
                     val_ppl_f.append(ppl)
 
             if val_flops:
-                # Val loss (markers)
+                # Val loss (markers) - different color
                 fig.add_trace(
                     go.Scatter(
                         x=val_flops,
                         y=val_losses_f,
                         mode='markers',
                         name=f"{name} (val)",
-                        marker=dict(color=color, size=10, symbol='circle'),
+                        marker=dict(color=val_color, size=10, symbol='circle'),
                         hovertemplate="TFLOPs: %{x:.2f}<br>Val Loss: %{y:.4f}<extra></extra>",
                     ),
                     secondary_y=False,
                 )
 
-                # Perplexity (diamond markers, secondary y-axis)
+                # Perplexity (diamond markers, secondary y-axis) - same as val
                 fig.add_trace(
                     go.Scatter(
                         x=val_flops,
                         y=val_ppl_f,
                         mode='markers',
                         name=f"{name} (ppl)",
-                        marker=dict(color=color, size=10, symbol='diamond'),
+                        marker=dict(color=val_color, size=10, symbol='diamond'),
                         hovertemplate="TFLOPs: %{x:.2f}<br>Perplexity: %{y:.2f}<extra></extra>",
                     ),
                     secondary_y=True,

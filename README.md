@@ -4,17 +4,14 @@ Despite how prolific and simple transformers are, many implementations you'll fi
 and optimizations which obfuscate the core architecture and learning process. 
 
 This simple, small repo is my personal effort to understand transformer fundamentals. At it's core, this is
-distilled into to simple implementations of a transformer model:
+distilled into two simple implementations of a transformer models:
 
 - *Custom Transfomrer*: A tensor-level implementation with explicitly defined backpropagation
 - *Torch Transfomer*: A PyTorch implementation almost exactly mirrors the custom transformer to show the abstractions by PyTorch
 
-These files are both written entirely by hand, by me, with intentional naming and comments to make the code
-exceptionally easy to follow. My guiding principles for building this repository: 
-
-* Focus on the models & learning mechanism. This is the core of what makes transformers work and the key intention of this repo. 
-* Simplicity over optimization. There are many finely tuned transformer implementations, the purpose of this repository is a fundamental understanding!
-* Readability over conciseness. You'll find longer variable names and comments to walk through exactly what is happening
+These hand-written files should be easy to follow, with ample comments and intentional naming. The implementation is 
+geared for learning, favoring simplicity over optimization, and readability over conciseness. I hope you find the
+implementations easy to follow! 
 
 The rest of the repository includes the all the necessary apartuses you'll need to take a base model and:
 - Get the data necessary to train it
@@ -25,7 +22,67 @@ The rest of the repository includes the all the necessary apartuses you'll need 
 - Interact with a model you've trained
 
 As you can guess, the core model itself ends up being pretty simple in comparison to all the supporting infra
-necessary to train and evaluate the models!
+necessary to train and evaluate the models. Thanks Claude for your help in that!
+
+### Example
+
+Once you've got the basic setup (dataset, tokenizer), it's pretty quick to train and compare models!
+
+1. Kicking off Training 
+
+Using tmux (or an alternative), you can easily train a model:
+`python scripts/train.py --config configs/torch_25m.yaml --model-type torch`
+
+2. Seeing is Believing
+
+You can visualize the results in real-time by opening the visualizer in parallel:
+`python -m visualizer`
+
+<TODO: Add Screenshot>
+
+By default, ever 500 steps and after each validation, logs will be written. Refresh and see the progress!
+
+3. Comparing architectures
+
+The visualizer can also be used to compare multiple model configurations to see how loss curves change. This can be seen both in terms of per-training step, but also in terms of compute FLOPs. 
+
+<TODO: Add Screenshot>
+
+4. Putting it in perspective
+
+While perplexity is more intuitive than loss, it's still not exactly clear what to expect. On 25-50M model for the TinyStories dataset, here's a more intuitive idea of what to expect. So when you think about "perplexity is how many tokens the model is chosing from" you have a more tangible idea of what that means. 
+
+Once you've trained a model, you can experience this directly though the `--chat` interface:
+
+<TODO: Add Chat example>
+
+```bash
+# Example 25M Model w/ TODO Loss
+python scripts/validate.py \
+    --checkpoint assets/models/torch_25m/best.pt \
+    --config configs/torch_25m.yaml \
+    --model-type torch \
+    --chat
+...
+```
+
+
+Note, the model isn't fine-tuned to provide Q&A style response, instead it's aiming to predict from "Once upon a time ..." to tell a reasonable story. Here's a general idea of what to expect
+
+```markdown
+| Loss (approx) | Perplexity | What you typically see |
+|---------------|------------|------------------------|
+| **5.0+** | ~150+ | Random tokens, maybe common words like "the", "a", "said" appearing frequently |
+| **4.0 - 5.0** | ~55-150 | Recognizable fragments: names (Tim, Lily, Sara), simple words, but no sentence structure |
+| **3.0 - 4.0** | ~20-55 | Simple sentences emerge. "The boy was happy." Subject-verb-object works. Stories don't connect. |
+| **2.0 - 3.0** | ~7-20 | Coherent short stories. Characters do things, basic cause/effect. Repetitive patterns, abrupt endings. |
+| **1.5 - 2.0** | ~4.5-7 | Solid TinyStories quality. Beginning/middle/end structure. Morals appear. Characters have consistent traits within a story. |
+| **1.2 - 1.5** | ~3.3-4.5 | Approaching ceiling for this scale. Clean grammar, age-appropriate vocabulary, stories feel complete. Occasional creativity. |
+| **< 1.2** | < 3.3 | Likely overfitting or you've got a bigger model than you think. Diminishing returns. |
+```
+
+With that, happy training! 
+
 
 ### Quickstart
 
@@ -44,6 +101,14 @@ python scripts/train.py --config configs/test_torch.yaml --model-type torch
 # Launch visualizer to compare runs
 python -m visualizer
 ```
+
+#### Quick Notes on Hardware and Configuration
+
+I've developed the example configs in this repo for Nvidia GPU with 16GB+ VRAM. If you have less 
+VRAM, it should just reduce batch_size and increase gradient accumulation steps to compensate. 
+
+In theory, it shouldn't be hard to convert this to a Mac M-chip, but I've found if the goal is 
+learning, it's worth the investment of a nVidia GPU - even if just a cheap/basic one (RTX 3060's have 12GB VRAM and are commonly under $200).
 
 ### Repository Structure
 <details>
