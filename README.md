@@ -122,8 +122,8 @@ transformer_fundamentals/
 │   └── tokenization.py         # BPE tokenizer training and analysis
 │
 ├── visualizer/                 # Post-hoc training analysis (Gradio web UI)
-│   ├── app.py                  # Main application interface
-│   ├── plots.py                # Plotly chart generation
+│   ├── app.py                  # Main application interface with compute insights
+│   ├── plots.py                # Plotly charts including compute efficiency analysis
 │   ├── data.py                 # Log file discovery and loading
 │   ├── compare.py              # Summary statistics and config comparison
 │   └── compute.py              # FLOPs estimation and metrics
@@ -380,10 +380,14 @@ python -m visualizer --port 8080
 #### Features
 
 - **Loss Curves**: Overlay training and validation loss for up to 4 runs
-- **Validation Metrics**: Dual y-axis plot showing loss and perplexity
-- **FLOPs-Normalized**: Loss vs cumulative compute for fair model size comparison
 - **Learning Rate**: Visualize LR schedules across runs
-- **Throughput**: Compare tokens/second performance
+- **Compute Analysis** (tabbed interface):
+  - *Loss vs Compute*: FLOPs-normalized loss with iso-loss reference lines
+  - *Equal Compute Comparison*: Interpolated loss curves at matching compute budgets
+  - *Compute Efficiency*: Loss improvement per TFLOP (-dLoss/dTFLOPs) to visualize diminishing returns
+- **Compute Budget Slider**: Interactive slider to compare models at specific compute budgets
+- **Compute Insights**: Auto-generated analysis including crossover points and efficiency comparisons
+- **Throughput**: Compare tokens/second performance with EMA smoothing
 - **Config Comparison**: Side-by-side model and training configuration tables
 - **Summary Table**: Quick comparison of key metrics (params, best loss, TFLOPs)
 
@@ -393,17 +397,25 @@ Note: FLOPs use the Chinchilla approximation (6 * N * D) where N = num model par
 
 ```python
 from visualizer import (
-    create_app,              # Create Gradio app
-    launch,                  # Launch the visualizer
-    create_loss_curves,      # Generate loss plot
-    create_flops_normalized_loss,  # Compute-normalized plot
-    estimate_model_params,   # Estimate params from config
+    create_app,                          # Create Gradio app
+    launch,                              # Launch the visualizer
+    create_loss_curves,                  # Generate loss plot
+    create_combined_flops_plot,          # Loss vs compute with iso-loss lines
+    create_compute_efficiency_comparison,# Compare at equal compute budgets
+    create_efficiency_curve,             # -dLoss/dTFLOPs efficiency plot
+    find_crossover_points,               # Detect model efficiency crossovers
+    estimate_model_params,               # Estimate params from config
 )
 from training import load_training_log
 
 # Load and visualize a training run
 run = load_training_log('assets/logs/my_experiment.json')
 fig = create_loss_curves({'my_run': run})
+fig.show()
+
+# Compare compute efficiency across runs
+runs = {'25M': run_25m, '50M': run_50m}
+fig = create_compute_efficiency_comparison(runs, budget_tflops=400)
 fig.show()
 ```
 </details>

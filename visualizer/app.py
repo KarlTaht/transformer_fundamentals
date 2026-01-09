@@ -10,6 +10,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+import numpy as np
+
 from .data import get_log_choices, load_runs_from_paths
 from .plots import (
     create_combined_steps_plot,
@@ -17,7 +19,12 @@ from .plots import (
     create_lr_schedule_plot,
     create_throughput_plot,
     create_empty_figure,
+    create_compute_efficiency_comparison,
+    create_efficiency_curve,
+    find_crossover_points,
+    get_val_flops_data,
 )
+from .compute import compute_cumulative_flops
 from .compare import create_summary_table, format_config_comparison, compute_run_summary
 
 
@@ -58,36 +65,192 @@ def format_stats_html(runs) -> str:
     return html
 
 
-def update_visualizations(selected_logs: List[str]) -> Tuple:
+def get_compute_range(runs) -> Tuple[float, float]:
+    """
+    Get min/max compute (TFLOPs) across all runs.
+
+    Args:
+        runs: Dict of run_name -> TrainingRun
+
+    Returns:
+        Tuple of (min_tflops, max_tflops)
+    """
+    all_flops = []
+    for run in runs.values():
+        _, tflops = compute_cumulative_flops(run)
+        if tflops:
+            all_flops.extend(tflops)
+
+    if not all_flops:
+        return 0, 1000
+
+    return min(all_flops), max(all_flops)
+
+
+def generate_compute_insights(runs, budget_tflops: float = None) -> str:
+    """
+    Generate markdown insights about compute efficiency.
+
+    Args:
+        runs: Dict of run_name -> TrainingRun
+        budget_tflops: Optional compute budget for comparison
+
+    Returns:
+        Markdown string with insights
+    """
+    if not runs:
+        return ""
+
+    insights = []
+
+    # Get compute range
+    min_tflops, max_tflops = get_compute_range(runs)
+    common_budget = min(max_tflops, min(run_max for run_max in [
+        get_val_flops_data(run)[0].max() if len(get_val_flops_data(run)[0]) > 0 else 0
+        for run in runs.values()
+    ] if run_max > 0)) if runs else None
+
+    if budget_tflops is not None:
+        common_budget = budget_tflops
+
+    # Compare losses at common budget
+    if common_budget:
+        losses_at_budget = {}
+        for name, run in runs.items():
+            flops, losses = get_val_flops_data(run)
+            if len(flops) > 0 and flops.min() <= common_budget <= flops.max():
+                loss_at_budget = np.interp(common_budget, flops, losses)
+                losses_at_budget[name] = loss_at_budget
+
+        if losses_at_budget:
+            best_run = min(losses_at_budget, key=losses_at_budget.get)
+            insights.append(
+                f"**At {common_budget:.0f} TFLOPs:** {best_run} achieves lowest "
+                f"validation loss ({losses_at_budget[best_run]:.4f})"
+            )
+
+    # Find crossover points
+    crossovers = find_crossover_points(runs)
+    for cross in crossovers[:2]:  # Limit to first 2
+        insights.append(
+            f"**Crossover at loss={cross['loss']:.3f}:** {cross['larger']} becomes "
+            f"more efficient than {cross['smaller']} ({cross['flops_large']:.0f} vs "
+            f"{cross['flops_small']:.0f} TFLOPs)"
+        )
+
+    # Compute to reach specific loss thresholds
+    target_losses = [2.0, 1.5]
+    for target in target_losses:
+        for name, run in runs.items():
+            flops, losses = get_val_flops_data(run)
+            if len(flops) > 0 and losses.min() < target < losses.max():
+                # Interpolate to find FLOPs needed
+                sorted_idx = np.argsort(losses)[::-1]
+                flops_to_target = np.interp(target, losses[sorted_idx], flops[sorted_idx])
+                insights.append(
+                    f"**{name}** reaches loss={target:.1f} at {flops_to_target:.0f} TFLOPs"
+                )
+                break  # Only show first run that reaches this threshold
+
+    if not insights:
+        return "*Select multiple runs to see compute efficiency insights.*"
+
+    return "\n\n".join(insights)
+
+
+def update_visualizations(selected_logs: List[str], budget_tflops: float = None) -> Tuple:
     """
     Main callback to update all visualizations when selection changes.
 
     Args:
         selected_logs: List of selected log file paths
+        budget_tflops: Optional compute budget for comparison (in TFLOPs)
 
     Returns:
-        Tuple of (stats_html, loss_steps_fig, loss_flops_fig, lr_fig, throughput_fig, summary_df, config_md)
+        Tuple of outputs for all UI components
     """
     if not selected_logs:
         empty = create_empty_figure()
-        return "", empty, empty, empty, empty, [], "No runs selected"
+        return (
+            "",  # stats_html
+            empty, empty,  # loss_steps, lr
+            empty, empty, empty,  # loss_flops, comparison, efficiency
+            empty,  # throughput
+            "",  # insights
+            gr.update(minimum=0, maximum=1000, value=500),  # slider
+            [], "No runs selected"  # summary, config
+        )
 
     runs = load_runs_from_paths(selected_logs)
 
     if not runs:
         empty = create_empty_figure("Failed to load runs")
-        return "", empty, empty, empty, empty, [], "Failed to load selected runs"
+        return (
+            "",
+            empty, empty,
+            empty, empty, empty,
+            empty,
+            "",
+            gr.update(minimum=0, maximum=1000, value=500),
+            [], "Failed to load selected runs"
+        )
+
+    # Get compute range for slider
+    min_tflops, max_tflops = get_compute_range(runs)
+    # Round to nice values
+    slider_min = int(min_tflops // 50) * 50
+    slider_max = int((max_tflops // 50) + 1) * 50
+    slider_value = int((slider_min + slider_max) / 2)
 
     # Generate all visualizations
     stats_html = format_stats_html(runs)
     loss_steps_fig = create_combined_steps_plot(runs)
-    loss_flops_fig = create_combined_flops_plot(runs)
     lr_fig = create_lr_schedule_plot(runs)
+
+    # Compute performance charts
+    loss_flops_fig = create_combined_flops_plot(runs)
+    comparison_fig = create_compute_efficiency_comparison(runs, budget_tflops)
+    efficiency_fig = create_efficiency_curve(runs)
+
     throughput_fig = create_throughput_plot(runs)
+    insights_md = generate_compute_insights(runs, budget_tflops)
+
     summary_data = create_summary_table(runs)
     config_md = format_config_comparison(runs)
 
-    return stats_html, loss_steps_fig, loss_flops_fig, lr_fig, throughput_fig, summary_data, config_md
+    return (
+        stats_html,
+        loss_steps_fig, lr_fig,
+        loss_flops_fig, comparison_fig, efficiency_fig,
+        throughput_fig,
+        insights_md,
+        gr.update(minimum=slider_min, maximum=slider_max, value=slider_value),
+        summary_data, config_md
+    )
+
+
+def update_budget_comparison(selected_logs: List[str], budget_tflops: float) -> Tuple:
+    """
+    Update only the budget-dependent visualizations when slider changes.
+
+    Args:
+        selected_logs: List of selected log file paths
+        budget_tflops: Compute budget in TFLOPs
+
+    Returns:
+        Tuple of (comparison_fig, insights_md)
+    """
+    if not selected_logs:
+        return create_empty_figure(), ""
+
+    runs = load_runs_from_paths(selected_logs)
+    if not runs:
+        return create_empty_figure(), ""
+
+    comparison_fig = create_compute_efficiency_comparison(runs, budget_tflops)
+    insights_md = generate_compute_insights(runs, budget_tflops)
+
+    return comparison_fig, insights_md
 
 
 def refresh_log_choices() -> dict:
@@ -104,7 +267,7 @@ def create_app() -> gr.Blocks:
         gr.Markdown(
             "Select 1-4 training runs to compare. "
             "**Left column**: metrics vs training steps. "
-            "**Right column**: metrics vs compute (FLOPs)."
+            "**Right column**: compute efficiency analysis."
         )
 
         # Run Selection Row
@@ -134,7 +297,30 @@ def create_app() -> gr.Blocks:
             # Right Column: Compute Performance (X-axis: FLOPs)
             with gr.Column(scale=1):
                 gr.Markdown("### Compute Performance (FLOPs)")
-                loss_flops_plot = gr.Plot(label="Loss & Perplexity vs FLOPs")
+                with gr.Tabs():
+                    with gr.Tab("Loss vs Compute"):
+                        loss_flops_plot = gr.Plot(label="Loss & Perplexity vs FLOPs")
+                    with gr.Tab("Equal Compute Comparison"):
+                        comparison_plot = gr.Plot(label="Validation Loss at Equal Compute")
+                    with gr.Tab("Compute Efficiency"):
+                        efficiency_plot = gr.Plot(label="Efficiency Curve")
+
+                # Compute budget slider
+                compute_budget_slider = gr.Slider(
+                    minimum=0,
+                    maximum=1000,
+                    value=500,
+                    step=10,
+                    label="Compute Budget (TFLOPs)",
+                    info="Highlight a specific compute budget in the comparison",
+                )
+
+                # Compute insights
+                with gr.Accordion("Compute Insights", open=True):
+                    insights_display = gr.Markdown(
+                        value="*Select training runs to see insights.*"
+                    )
+
                 throughput_plot = gr.Plot(label="Throughput (Tokens/sec)")
 
         # Config Comparison (expanded by default for transparency)
@@ -153,9 +339,23 @@ def create_app() -> gr.Blocks:
         # Event handlers
         log_dropdown.change(
             fn=update_visualizations,
-            inputs=[log_dropdown],
-            outputs=[stats_display, loss_steps_plot, loss_flops_plot, lr_plot,
-                    throughput_plot, summary_table, config_display],
+            inputs=[log_dropdown, compute_budget_slider],
+            outputs=[
+                stats_display,
+                loss_steps_plot, lr_plot,
+                loss_flops_plot, comparison_plot, efficiency_plot,
+                throughput_plot,
+                insights_display,
+                compute_budget_slider,
+                summary_table, config_display
+            ],
+        )
+
+        # Update comparison chart when budget slider changes
+        compute_budget_slider.change(
+            fn=update_budget_comparison,
+            inputs=[log_dropdown, compute_budget_slider],
+            outputs=[comparison_plot, insights_display],
         )
 
         refresh_btn.click(
