@@ -18,7 +18,44 @@ from .plots import (
     create_throughput_plot,
     create_empty_figure,
 )
-from .compare import create_summary_table, format_config_comparison
+from .compare import create_summary_table, format_config_comparison, compute_run_summary
+
+
+def format_stats_html(runs) -> str:
+    """
+    Format key metrics as HTML cards for quick comparison.
+
+    Args:
+        runs: Dict of run_name -> TrainingRun
+
+    Returns:
+        HTML string with stats cards
+    """
+    if not runs:
+        return ""
+
+    html = '<div style="display:flex; gap:15px; flex-wrap:wrap; margin-bottom:10px;">'
+    for name, run in runs.items():
+        summary = compute_run_summary(run)
+        final_loss = summary.get('final_train_loss')
+        best_val = summary.get('best_val_loss')
+
+        final_loss_str = f"{final_loss:.4f}" if final_loss is not None else "N/A"
+        best_val_str = f"{best_val:.4f}" if best_val is not None else "N/A"
+
+        html += f'''
+        <div style="border:1px solid #ccc; padding:12px; border-radius:8px; min-width:180px; background:#f5f5f5;">
+            <div style="font-weight:600; margin-bottom:8px; font-size:0.9em; color:#111 !important;">{name}</div>
+            <div style="font-size:0.85em; color:#333 !important;">
+                <div>Final Loss: <b style="color:#000 !important;">{final_loss_str}</b></div>
+                <div>Best Val: <b style="color:#000 !important;">{best_val_str}</b></div>
+                <div>Params: <b style="color:#000 !important;">{summary.get('params_formatted', 'N/A')}</b></div>
+                <div>Compute: <b style="color:#000 !important;">{summary.get('total_tflops_formatted', 'N/A')}</b></div>
+            </div>
+        </div>
+        '''
+    html += '</div>'
+    return html
 
 
 def update_visualizations(selected_logs: List[str]) -> Tuple:
@@ -29,19 +66,20 @@ def update_visualizations(selected_logs: List[str]) -> Tuple:
         selected_logs: List of selected log file paths
 
     Returns:
-        Tuple of (loss_steps_fig, loss_flops_fig, lr_fig, throughput_fig, summary_df, config_md)
+        Tuple of (stats_html, loss_steps_fig, loss_flops_fig, lr_fig, throughput_fig, summary_df, config_md)
     """
     if not selected_logs:
         empty = create_empty_figure()
-        return empty, empty, empty, empty, [], "No runs selected"
+        return "", empty, empty, empty, empty, [], "No runs selected"
 
     runs = load_runs_from_paths(selected_logs)
 
     if not runs:
         empty = create_empty_figure("Failed to load runs")
-        return empty, empty, empty, empty, [], "Failed to load selected runs"
+        return "", empty, empty, empty, empty, [], "Failed to load selected runs"
 
     # Generate all visualizations
+    stats_html = format_stats_html(runs)
     loss_steps_fig = create_combined_steps_plot(runs)
     loss_flops_fig = create_combined_flops_plot(runs)
     lr_fig = create_lr_schedule_plot(runs)
@@ -49,7 +87,7 @@ def update_visualizations(selected_logs: List[str]) -> Tuple:
     summary_data = create_summary_table(runs)
     config_md = format_config_comparison(runs)
 
-    return loss_steps_fig, loss_flops_fig, lr_fig, throughput_fig, summary_data, config_md
+    return stats_html, loss_steps_fig, loss_flops_fig, lr_fig, throughput_fig, summary_data, config_md
 
 
 def refresh_log_choices() -> dict:
@@ -82,6 +120,9 @@ def create_app() -> gr.Blocks:
             with gr.Column(scale=1):
                 refresh_btn = gr.Button("Refresh", variant="secondary", size="sm")
 
+        # Quick Stats Row (shows key metrics for selected runs)
+        stats_display = gr.HTML(label="Quick Stats")
+
         # Two-Column Visualization Layout
         with gr.Row():
             # Left Column: Model Performance (X-axis: Steps)
@@ -96,8 +137,8 @@ def create_app() -> gr.Blocks:
                 loss_flops_plot = gr.Plot(label="Loss & Perplexity vs FLOPs")
                 throughput_plot = gr.Plot(label="Throughput (Tokens/sec)")
 
-        # Config Comparison (collapsible)
-        with gr.Accordion("Configuration Comparison", open=False):
+        # Config Comparison (expanded by default for transparency)
+        with gr.Accordion("Configuration Comparison", open=True):
             config_display = gr.Markdown(label="Configuration Comparison")
 
         # Summary Table (always visible)
@@ -113,8 +154,8 @@ def create_app() -> gr.Blocks:
         log_dropdown.change(
             fn=update_visualizations,
             inputs=[log_dropdown],
-            outputs=[loss_steps_plot, loss_flops_plot, lr_plot, throughput_plot,
-                    summary_table, config_display],
+            outputs=[stats_display, loss_steps_plot, loss_flops_plot, lr_plot,
+                    throughput_plot, summary_table, config_display],
         )
 
         refresh_btn.click(

@@ -87,7 +87,7 @@ def compute_run_summary(run: TrainingRun) -> Dict[str, Any]:
     return summary
 
 
-def create_summary_table(runs: Dict[str, TrainingRun]) -> List[Dict[str, Any]]:
+def create_summary_table(runs: Dict[str, TrainingRun]) -> List[List[Any]]:
     """
     Create summary table data for all runs.
 
@@ -95,24 +95,24 @@ def create_summary_table(runs: Dict[str, TrainingRun]) -> List[Dict[str, Any]]:
         runs: Dict of run_name -> TrainingRun
 
     Returns:
-        List of dicts suitable for display in Gradio DataFrame
+        List of lists (rows) for display in Gradio DataFrame
     """
     rows = []
     for name, run in runs.items():
         summary = compute_run_summary(run)
-        rows.append({
-            "Run": name,
-            "Type": summary.get("model_type", ""),
-            "Params": summary.get("params_formatted", ""),
-            "Steps": summary.get("total_steps", 0),
-            "Best Val Loss": f"{summary['best_val_loss']:.4f}"
-                            if summary.get('best_val_loss') is not None else "N/A",
-            "Perplexity": f"{summary['best_val_perplexity']:.2f}"
-                         if summary.get('best_val_perplexity') is not None else "N/A",
-            "TFLOPs": summary.get("total_tflops_formatted", "N/A"),
-            "Avg Tok/s": f"{summary['avg_throughput']:,.0f}"
-                        if summary.get('avg_throughput') is not None else "N/A",
-        })
+        rows.append([
+            name,
+            summary.get("model_type", ""),
+            summary.get("params_formatted", ""),
+            summary.get("total_steps", 0),
+            f"{summary['best_val_loss']:.4f}"
+                if summary.get('best_val_loss') is not None else "N/A",
+            f"{summary['best_val_perplexity']:.2f}"
+                if summary.get('best_val_perplexity') is not None else "N/A",
+            summary.get("total_tflops_formatted", "N/A"),
+            f"{summary['avg_throughput']:,.0f}"
+                if summary.get('avg_throughput') is not None else "N/A",
+        ])
     return rows
 
 

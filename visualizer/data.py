@@ -86,15 +86,20 @@ def load_runs_from_paths(log_paths: List[str]) -> Dict[str, TrainingRun]:
     return runs
 
 
-def get_log_choices(log_dir: Optional[str] = None) -> List[str]:
+def get_log_choices(log_dir: Optional[str] = None) -> List[tuple]:
     """
-    Get list of log file paths as strings for Gradio dropdown.
+    Get list of log file choices for Gradio dropdown.
 
     Args:
         log_dir: Directory to search. Defaults to assets/logs/
 
     Returns:
-        List of log file paths as strings
+        List of (display_name, file_path) tuples for Gradio dropdown
     """
     logs = discover_training_logs(log_dir)
-    return [str(log) for log in logs]
+    choices = []
+    for log in logs:
+        # Show just the filename without extension for cleaner display
+        display = log.stem  # e.g., "torch_25m_20251229_113328"
+        choices.append((display, str(log)))
+    return choices

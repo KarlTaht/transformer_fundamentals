@@ -13,6 +13,28 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from training import TrainingRun
 from .compute import compute_cumulative_flops
 
+from typing import List
+
+
+def smooth_data(values: List[float], alpha: float = 0.1) -> List[float]:
+    """
+    Apply exponential moving average (EMA) smoothing to reduce noise.
+
+    Args:
+        values: List of values to smooth
+        alpha: Smoothing factor (0-1). Lower = smoother. Default 0.1.
+
+    Returns:
+        Smoothed values
+    """
+    if not values:
+        return values
+    smoothed = [values[0]]
+    for v in values[1:]:
+        smoothed.append(alpha * v + (1 - alpha) * smoothed[-1])
+    return smoothed
+
+
 # Color palette for runs - each run gets a train/val color pair
 # Train colors are darker/saturated, val colors are lighter variants
 RUN_COLORS_TRAIN = ["#1f77b4", "#d62728", "#2ca02c", "#9467bd"]  # Blue, Red, Green, Purple
@@ -71,18 +93,21 @@ def create_loss_curves(
             ))
 
     fig.update_layout(
-        title="Loss Curves",
+        title=dict(text="Loss Curves", y=0.95),
         xaxis_title="Step",
         yaxis_title="Loss",
         legend=dict(
             orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="left",
-            x=0,
+            yanchor="top",
+            y=-0.15,
+            xanchor="center",
+            x=0.5,
         ),
+        margin=dict(b=80),
         hovermode="x unified",
         template="plotly_white",
+        xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
+        yaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
     )
 
     return fig
@@ -138,20 +163,33 @@ def create_validation_curves(runs: Dict[str, TrainingRun]) -> go.Figure:
         )
 
     fig.update_layout(
-        title="Validation Metrics",
+        title=dict(text="Validation Metrics", y=0.95),
         legend=dict(
             orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="left",
-            x=0,
+            yanchor="top",
+            y=-0.15,
+            xanchor="center",
+            x=0.5,
         ),
+        margin=dict(b=80),
         hovermode="x unified",
         template="plotly_white",
+        xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
     )
     fig.update_xaxes(title_text="Step")
-    fig.update_yaxes(title_text="Loss", secondary_y=False)
-    fig.update_yaxes(title_text="Perplexity", secondary_y=True)
+    fig.update_yaxes(
+        title_text="Loss",
+        secondary_y=False,
+        showgrid=True,
+        gridwidth=1,
+        gridcolor='rgba(128,128,128,0.2)',
+    )
+    fig.update_yaxes(
+        title_text="Perplexity",
+        secondary_y=True,
+        title_font=dict(color="#666"),
+        tickfont=dict(color="#666"),
+    )
 
     return fig
 
@@ -186,19 +224,22 @@ def create_lr_schedule_plot(runs: Dict[str, TrainingRun]) -> go.Figure:
         ))
 
     fig.update_layout(
-        title="Learning Rate Schedule",
+        title=dict(text="Learning Rate Schedule", y=0.95),
         xaxis_title="Step",
         yaxis_title="Learning Rate",
         yaxis_type="log",
         legend=dict(
             orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="left",
-            x=0,
+            yanchor="top",
+            y=-0.15,
+            xanchor="center",
+            x=0.5,
         ),
+        margin=dict(b=80),
         hovermode="x unified",
         template="plotly_white",
+        xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
+        yaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
     )
 
     return fig
@@ -206,7 +247,7 @@ def create_lr_schedule_plot(runs: Dict[str, TrainingRun]) -> go.Figure:
 
 def create_throughput_plot(runs: Dict[str, TrainingRun]) -> go.Figure:
     """
-    Create tokens/second throughput comparison.
+    Create tokens/second throughput comparison with EMA smoothing.
 
     Args:
         runs: Dict of run_name -> TrainingRun
@@ -229,10 +270,12 @@ def create_throughput_plot(runs: Dict[str, TrainingRun]) -> go.Figure:
             continue
 
         steps, tps = zip(*data)
+        # Apply EMA smoothing to reduce checkpoint noise
+        tps_smoothed = smooth_data(list(tps), alpha=0.1)
 
         fig.add_trace(go.Scatter(
             x=list(steps),
-            y=list(tps),
+            y=tps_smoothed,
             mode='lines',
             name=name,
             line=dict(color=color, width=2),
@@ -240,18 +283,21 @@ def create_throughput_plot(runs: Dict[str, TrainingRun]) -> go.Figure:
         ))
 
     fig.update_layout(
-        title="Training Throughput",
+        title=dict(text="Training Throughput", y=0.95),
         xaxis_title="Step",
         yaxis_title="Tokens/Second",
         legend=dict(
             orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="left",
-            x=0,
+            yanchor="top",
+            y=-0.15,
+            xanchor="center",
+            x=0.5,
         ),
+        margin=dict(b=80),
         hovermode="x unified",
         template="plotly_white",
+        xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
+        yaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
     )
 
     return fig
@@ -314,25 +360,29 @@ def create_flops_normalized_loss(runs: Dict[str, TrainingRun]) -> go.Figure:
                 fig.add_trace(go.Scatter(
                     x=val_flops,
                     y=val_losses_filtered,
-                    mode='markers',
+                    mode='lines',
                     name=f"{name} (val)",
-                    marker=dict(color=val_color, size=10, symbol='diamond'),
+                    line=dict(color=val_color, width=2),
                     hovertemplate="TFLOPs: %{x:.2f}<br>Val Loss: %{y:.4f}<extra></extra>",
                 ))
 
     fig.update_layout(
-        title="Loss vs Compute (FLOPs-Normalized)",
+        title=dict(text="Loss vs Compute (FLOPs-Normalized)", y=0.95),
         xaxis_title="Cumulative TFLOPs",
-        yaxis_title="Loss",
+        yaxis_title="Loss (log scale)",
+        yaxis_type="log",
         legend=dict(
             orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="left",
-            x=0,
+            yanchor="top",
+            y=-0.15,
+            xanchor="center",
+            x=0.5,
         ),
+        margin=dict(b=80),
         hovermode="x unified",
         template="plotly_white",
+        xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
+        yaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
     )
 
     return fig
@@ -388,10 +438,9 @@ def create_combined_steps_plot(
                 go.Scatter(
                     x=val_steps,
                     y=val_losses,
-                    mode='lines+markers',
+                    mode='lines',
                     name=f"{name} (val)",
                     line=dict(color=val_color, width=2),
-                    marker=dict(size=6),
                     hovertemplate="Step: %{x}<br>Val Loss: %{y:.4f}<extra></extra>",
                 ),
                 secondary_y=False,
@@ -403,31 +452,44 @@ def create_combined_steps_plot(
                 go.Scatter(
                     x=val_steps,
                     y=perplexities,
-                    mode='lines+markers',
+                    mode='lines',
                     name=f"{name} (ppl)",
                     line=dict(color=val_color, dash='dash', width=2),
-                    marker=dict(size=6, symbol='diamond'),
                     hovertemplate="Step: %{x}<br>Perplexity: %{y:.2f}<extra></extra>",
                 ),
                 secondary_y=True,
             )
 
     fig.update_layout(
-        title="Loss & Perplexity vs Training Steps",
+        title=dict(text="Loss & Perplexity vs Training Steps", y=0.95),
         legend=dict(
             orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="left",
-            x=0,
+            yanchor="top",
+            y=-0.15,
+            xanchor="center",
+            x=0.5,
         ),
+        margin=dict(b=80),
         hovermode="x unified",
         template="plotly_white",
-        height=350,
+        height=400,
+        xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
     )
     fig.update_xaxes(title_text="Step")
-    fig.update_yaxes(title_text="Loss", secondary_y=False)
-    fig.update_yaxes(title_text="Perplexity", secondary_y=True)
+    fig.update_yaxes(
+        title_text="Loss (log scale)",
+        type="log",
+        secondary_y=False,
+        showgrid=True,
+        gridwidth=1,
+        gridcolor='rgba(128,128,128,0.2)',
+    )
+    fig.update_yaxes(
+        title_text="Perplexity",
+        secondary_y=True,
+        title_font=dict(color="#666"),
+        tickfont=dict(color="#666"),
+    )
 
     return fig
 
@@ -491,48 +553,62 @@ def create_combined_flops_plot(runs: Dict[str, TrainingRun]) -> go.Figure:
                     val_ppl_f.append(ppl)
 
             if val_flops:
-                # Val loss (markers) - different color
+                # Val loss (line) - different color
                 fig.add_trace(
                     go.Scatter(
                         x=val_flops,
                         y=val_losses_f,
-                        mode='markers',
+                        mode='lines',
                         name=f"{name} (val)",
-                        marker=dict(color=val_color, size=10, symbol='circle'),
+                        line=dict(color=val_color, width=2),
                         hovertemplate="TFLOPs: %{x:.2f}<br>Val Loss: %{y:.4f}<extra></extra>",
                     ),
                     secondary_y=False,
                 )
 
-                # Perplexity (diamond markers, secondary y-axis) - same as val
+                # Perplexity (dashed line, secondary y-axis) - same as val
                 fig.add_trace(
                     go.Scatter(
                         x=val_flops,
                         y=val_ppl_f,
-                        mode='markers',
+                        mode='lines',
                         name=f"{name} (ppl)",
-                        marker=dict(color=val_color, size=10, symbol='diamond'),
+                        line=dict(color=val_color, width=2, dash='dash'),
                         hovertemplate="TFLOPs: %{x:.2f}<br>Perplexity: %{y:.2f}<extra></extra>",
                     ),
                     secondary_y=True,
                 )
 
     fig.update_layout(
-        title="Loss & Perplexity vs Compute (FLOPs)",
+        title=dict(text="Loss & Perplexity vs Compute (FLOPs)", y=0.95),
         legend=dict(
             orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="left",
-            x=0,
+            yanchor="top",
+            y=-0.15,
+            xanchor="center",
+            x=0.5,
         ),
+        margin=dict(b=80),
         hovermode="x unified",
         template="plotly_white",
-        height=350,
+        height=400,
+        xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
     )
     fig.update_xaxes(title_text="Cumulative TFLOPs")
-    fig.update_yaxes(title_text="Loss", secondary_y=False)
-    fig.update_yaxes(title_text="Perplexity", secondary_y=True)
+    fig.update_yaxes(
+        title_text="Loss (log scale)",
+        type="log",
+        secondary_y=False,
+        showgrid=True,
+        gridwidth=1,
+        gridcolor='rgba(128,128,128,0.2)',
+    )
+    fig.update_yaxes(
+        title_text="Perplexity",
+        secondary_y=True,
+        title_font=dict(color="#666"),
+        tickfont=dict(color="#666"),
+    )
 
     return fig
 
