@@ -119,6 +119,7 @@ def create_summary_table(runs: Dict[str, TrainingRun]) -> List[List[Any]]:
 def format_config_comparison(runs: Dict[str, TrainingRun]) -> str:
     """
     Format model and training configs for side-by-side comparison.
+    Parameters that differ between runs are highlighted with ⚡.
 
     Args:
         runs: Dict of run_name -> TrainingRun
@@ -132,6 +133,19 @@ def format_config_comparison(runs: Dict[str, TrainingRun]) -> str:
     run_names = list(runs.keys())
     run_list = list(runs.values())
 
+    def format_row(key: str, values: List[str], is_diff: bool) -> str:
+        """Format a table row, marking differing values."""
+        if is_diff and len(values) > 1:
+            # Highlight differing values with bold
+            formatted = [f"**{v}**" for v in values]
+            return f"| ⚡ {key} | " + " | ".join(formatted) + " |"
+        else:
+            return f"| {key} | " + " | ".join(values) + " |"
+
+    def values_differ(values: List[str]) -> bool:
+        """Check if any values differ from each other."""
+        return len(set(values)) > 1
+
     lines = []
 
     # Model config comparison
@@ -144,9 +158,21 @@ def format_config_comparison(runs: Dict[str, TrainingRun]) -> str:
     for run in run_list:
         all_model_keys.update(run.model_config.keys())
 
+    # Sort keys but put differing ones first
+    model_diffs = []
+    model_same = []
     for key in sorted(all_model_keys):
         values = [str(run.model_config.get(key, "-")) for run in run_list]
-        lines.append(f"| {key} | " + " | ".join(values) + " |")
+        if values_differ(values):
+            model_diffs.append((key, values))
+        else:
+            model_same.append((key, values))
+
+    # Differing parameters first
+    for key, values in model_diffs:
+        lines.append(format_row(key, values, is_diff=True))
+    for key, values in model_same:
+        lines.append(format_row(key, values, is_diff=False))
 
     # Training config comparison
     lines.append("\n## Training Configuration\n")
@@ -157,9 +183,20 @@ def format_config_comparison(runs: Dict[str, TrainingRun]) -> str:
     for run in run_list:
         all_train_keys.update(run.train_config.keys())
 
+    # Sort keys but put differing ones first
+    train_diffs = []
+    train_same = []
     for key in sorted(all_train_keys):
         values = [str(run.train_config.get(key, "-")) for run in run_list]
-        lines.append(f"| {key} | " + " | ".join(values) + " |")
+        if values_differ(values):
+            train_diffs.append((key, values))
+        else:
+            train_same.append((key, values))
+
+    for key, values in train_diffs:
+        lines.append(format_row(key, values, is_diff=True))
+    for key, values in train_same:
+        lines.append(format_row(key, values, is_diff=False))
 
     # Add estimated params row
     lines.append("\n## Computed Metrics\n")
@@ -167,9 +204,11 @@ def format_config_comparison(runs: Dict[str, TrainingRun]) -> str:
     lines.append("|--------|" + "|".join(["---"] * len(runs)) + "|")
 
     params_values = [format_params(estimate_model_params(run.model_config)) for run in run_list]
-    lines.append(f"| Est. Parameters | " + " | ".join(params_values) + " |")
+    is_diff = values_differ(params_values)
+    lines.append(format_row("Est. Parameters", params_values, is_diff))
 
     flops_values = [format_flops(compute_total_flops(run)) for run in run_list]
-    lines.append(f"| Total Compute | " + " | ".join(flops_values) + " |")
+    is_diff = values_differ(flops_values)
+    lines.append(format_row("Total Compute", flops_values, is_diff))
 
     return "\n".join(lines)

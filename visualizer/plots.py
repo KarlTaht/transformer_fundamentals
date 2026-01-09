@@ -36,6 +36,34 @@ def smooth_data(values: List[float], alpha: float = 0.1) -> List[float]:
     return smoothed
 
 
+def downsample(x: List, y: List, max_points: int = 1000) -> Tuple[List, List]:
+    """
+    Downsample data to max_points while preserving curve shape.
+
+    Uses uniform sampling with preserved endpoints.
+
+    Args:
+        x: X-axis values
+        y: Y-axis values
+        max_points: Maximum number of points to return (default 1000)
+
+    Returns:
+        Tuple of (downsampled_x, downsampled_y)
+    """
+    if len(x) <= max_points:
+        return x, y
+
+    # Calculate step size to get approximately max_points
+    step = len(x) / max_points
+    indices = [int(i * step) for i in range(max_points - 1)]
+    indices.append(len(x) - 1)  # Always include last point
+
+    # Remove duplicates while preserving order
+    indices = list(dict.fromkeys(indices))
+
+    return [x[i] for i in indices], [y[i] for i in indices]
+
+
 def get_val_flops_data(run: "TrainingRun") -> Tuple[np.ndarray, np.ndarray]:
     """
     Extract validation loss data with corresponding FLOPs values.
@@ -335,6 +363,7 @@ def create_lr_schedule_plot(runs: Dict[str, TrainingRun]) -> go.Figure:
         margin=dict(b=80),
         hovermode="x unified",
         template="plotly_white",
+        height=450,
         xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
         yaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
     )
@@ -393,6 +422,7 @@ def create_throughput_plot(runs: Dict[str, TrainingRun]) -> go.Figure:
         margin=dict(b=80),
         hovermode="x unified",
         template="plotly_white",
+        height=450,
         xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
         yaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
     )
@@ -515,6 +545,8 @@ def create_combined_steps_plot(
         if show_train and run.train_metrics:
             steps = [m.step for m in run.train_metrics]
             losses = [m.loss for m in run.train_metrics]
+            # Downsample for performance
+            steps, losses = downsample(steps, losses, max_points=500)
             fig.add_trace(
                 go.Scatter(
                     x=steps,
@@ -569,7 +601,7 @@ def create_combined_steps_plot(
         margin=dict(b=80),
         hovermode="x unified",
         template="plotly_white",
-        height=400,
+        height=450,
         xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
     )
     fig.update_xaxes(title_text="Step")
@@ -621,11 +653,14 @@ def create_combined_flops_plot(runs: Dict[str, TrainingRun]) -> go.Figure:
         if not tflops:
             continue
 
+        # Downsample for performance
+        tflops_ds, losses_ds = downsample(tflops, losses, max_points=500)
+
         # Training loss vs FLOPs (solid line)
         fig.add_trace(
             go.Scatter(
-                x=tflops,
-                y=losses,
+                x=tflops_ds,
+                y=losses_ds,
                 mode='lines',
                 name=f"{name} (train)",
                 line=dict(color=train_color, width=2),
@@ -660,36 +695,22 @@ def create_combined_flops_plot(runs: Dict[str, TrainingRun]) -> go.Figure:
     fig.update_layout(
         title=dict(text="Loss vs Compute (FLOPs)", y=0.95),
         xaxis_title="Cumulative TFLOPs",
-        yaxis_title="Loss (log scale)",
+        yaxis_title="Loss",
         yaxis_type="log",
         legend=dict(
             orientation="h",
             yanchor="top",
-            y=-0.22,
+            y=-0.15,
             xanchor="center",
             x=0.5,
         ),
-        margin=dict(b=100),
+        margin=dict(b=80),
         hovermode="x unified",
         template="plotly_white",
-        height=420,
+        height=450,
         xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
         yaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
     )
-
-    # Add auto-detected iso-loss reference lines
-    thresholds = compute_iso_loss_thresholds(runs)
-    for threshold in thresholds:
-        fig.add_hline(
-            y=threshold,
-            line_dash="dot",
-            line_color="rgba(128, 128, 128, 0.5)",
-            line_width=1,
-            annotation_text=f"{threshold:.1f}",
-            annotation_position="right",
-            annotation_font_size=9,
-            annotation_font_color="gray",
-        )
 
     return fig
 

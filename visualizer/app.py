@@ -41,23 +41,43 @@ def format_stats_html(runs) -> str:
     if not runs:
         return ""
 
+    # Find best values across runs for highlighting
+    summaries = {name: compute_run_summary(run) for name, run in runs.items()}
+    best_val_losses = [s.get('best_val_loss') for s in summaries.values()
+                       if s.get('best_val_loss') is not None]
+    min_val_loss = min(best_val_losses) if best_val_losses else None
+
     html = '<div style="display:flex; gap:15px; flex-wrap:wrap; margin-bottom:10px;">'
-    for name, run in runs.items():
-        summary = compute_run_summary(run)
+    for name, summary in summaries.items():
         final_loss = summary.get('final_train_loss')
         best_val = summary.get('best_val_loss')
+        perplexity = summary.get('best_val_perplexity')
 
         final_loss_str = f"{final_loss:.4f}" if final_loss is not None else "N/A"
         best_val_str = f"{best_val:.4f}" if best_val is not None else "N/A"
+        perplexity_str = f"{perplexity:.2f}" if perplexity is not None else "N/A"
+
+        # Highlight best performer
+        is_best = (min_val_loss is not None and best_val is not None
+                   and abs(best_val - min_val_loss) < 0.0001)
+        border_color = "#22c55e" if is_best else "#ccc"
+        border_width = "2px" if is_best else "1px"
+        best_marker = ' <span style="color:#22c55e;">★</span>' if is_best and len(runs) > 1 else ""
 
         html += f'''
-        <div style="border:1px solid #ccc; padding:12px; border-radius:8px; min-width:180px; background:#f5f5f5;">
-            <div style="font-weight:600; margin-bottom:8px; font-size:0.9em; color:#111 !important;">{name}</div>
-            <div style="font-size:0.85em; color:#333 !important;">
-                <div>Final Loss: <b style="color:#000 !important;">{final_loss_str}</b></div>
-                <div>Best Val: <b style="color:#000 !important;">{best_val_str}</b></div>
-                <div>Params: <b style="color:#000 !important;">{summary.get('params_formatted', 'N/A')}</b></div>
-                <div>Compute: <b style="color:#000 !important;">{summary.get('total_tflops_formatted', 'N/A')}</b></div>
+        <div style="border:{border_width} solid {border_color}; padding:12px; border-radius:8px; min-width:200px; background:#f5f5f5;">
+            <div style="font-weight:600; margin-bottom:8px; font-size:0.95em; color:#111 !important;">{name}{best_marker}</div>
+            <div style="font-size:0.85em; color:#333 !important; display:grid; grid-template-columns:auto auto; gap:2px 8px;">
+                <span style="color:#666;">Train Loss:</span>
+                <b style="color:#000 !important;">{final_loss_str}</b>
+                <span style="color:#666;">Val Loss:</span>
+                <b style="color:#000 !important;">{best_val_str}</b>
+                <span style="color:#666;">Perplexity:</span>
+                <b style="color:#000 !important;">{perplexity_str}</b>
+                <span style="color:#666;">Parameters:</span>
+                <b style="color:#000 !important;">{summary.get('params_formatted', 'N/A')}</b>
+                <span style="color:#666;">Compute:</span>
+                <b style="color:#000 !important;">{summary.get('total_tflops_formatted', 'N/A')}</b>
             </div>
         </div>
         '''
@@ -297,31 +317,30 @@ def create_app() -> gr.Blocks:
             # Right Column: Compute Performance (X-axis: FLOPs)
             with gr.Column(scale=1):
                 gr.Markdown("### Compute Performance (FLOPs)")
-                with gr.Tabs():
-                    with gr.Tab("Loss vs Compute"):
-                        loss_flops_plot = gr.Plot(label="Loss & Perplexity vs FLOPs")
-                    with gr.Tab("Equal Compute Comparison"):
-                        comparison_plot = gr.Plot(label="Validation Loss at Equal Compute")
-                    with gr.Tab("Compute Efficiency"):
-                        efficiency_plot = gr.Plot(label="Efficiency Curve")
+                loss_flops_plot = gr.Plot(label="Loss vs FLOPs")
+                throughput_plot = gr.Plot(label="Throughput (Tokens/sec)")
 
-                # Compute budget slider
-                compute_budget_slider = gr.Slider(
-                    minimum=0,
-                    maximum=1000,
-                    value=500,
-                    step=10,
-                    label="Compute Budget (TFLOPs)",
-                    info="Highlight a specific compute budget in the comparison",
-                )
-
-                # Compute insights
-                with gr.Accordion("Compute Insights", open=True):
+        # Compute Analysis Section (full width, below main charts)
+        with gr.Accordion("Compute Analysis", open=True):
+            with gr.Row():
+                with gr.Column(scale=3):
+                    with gr.Tabs():
+                        with gr.Tab("Equal Compute Comparison"):
+                            comparison_plot = gr.Plot(label="Validation Loss at Equal Compute")
+                        with gr.Tab("Compute Efficiency"):
+                            efficiency_plot = gr.Plot(label="Efficiency Curve")
+                with gr.Column(scale=1):
+                    compute_budget_slider = gr.Slider(
+                        minimum=0,
+                        maximum=1000,
+                        value=500,
+                        step=10,
+                        label="Compute Budget (TFLOPs)",
+                        info="Highlight a specific compute budget",
+                    )
                     insights_display = gr.Markdown(
                         value="*Select training runs to see insights.*"
                     )
-
-                throughput_plot = gr.Plot(label="Throughput (Tokens/sec)")
 
         # Config Comparison (expanded by default for transparency)
         with gr.Accordion("Configuration Comparison", open=True):
