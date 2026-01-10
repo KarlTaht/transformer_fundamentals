@@ -45,7 +45,7 @@ Using tmux (or an alternative), you can easily train a model:
 You can visualize the results in real-time by opening the visualizer in parallel:
 `python -m visualizer`
 
-![Training Visualizer](docs/train.png)
+![Training Visualizer](docs/Single_training.png)
 
 By default, ever 500 steps and after each validation, logs will be written. Refresh and see the progress!
 
@@ -74,7 +74,15 @@ Note, the model isn't fine-tuned to provide Q&A style response, instead it's aim
 
 The visualizer can also be used to compare multiple model configurations to see how loss curves change. This can be seen both in terms of per-training step, but also in terms of compute FLOPs. For example, here's a comparison of a 25M and 50M transformer model:
 
+![Model Comparison](docs/Comparison.png)
 
+#### Step 5: Understanding compute efficiency.
+
+When comparing models of different sizes, raw loss curves can be misleading - a larger model might achieve lower loss, but at what cost? The "Equal Compute Comparison" tab lets you answer the real question: *given a fixed compute budget, which model gets you the best results?*
+
+![Equal Compute Comparison](docs/compute_equal.png)
+
+Use the compute budget slider to explore different scenarios. You might find that a smaller model trained longer outperforms a larger model trained shorter - or vice versa. This is the heart of scaling law intuition.
 
 With that, happy training! 
 
